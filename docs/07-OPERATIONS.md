@@ -2,7 +2,7 @@
 
 ## Deployment
 
-Render builds and typechecks the API, then applies checked-in Prisma migrations in `preDeployCommand`. Startup verifies configuration, connects to MySQL/TiDB, idempotently prepares current demo trips, and only then accepts traffic. Vercel proxies `/api/*` to the Render service so cookies remain same-origin to the browser.
+Railway builds and typechecks the API from `backend/Dockerfile`; configure `npm run db:deploy` as the Railway service pre-deploy command. Startup verifies configuration, connects to MySQL/TiDB, idempotently prepares current demo trips, and only then accepts traffic. Vercel proxies `/api/*` to the Railway service so cookies remain same-origin to the browser.
 
 Required production values are `DATABASE_URL`, `FRONTEND_ORIGIN`, and a 32+ character `JWT_SECRET`. `OPENAI_API_KEY` is optional; without it, natural-language search uses the deterministic parser. Set `PRODUCTION_API_URL` in GitHub Actions after deployment.
 
@@ -21,4 +21,4 @@ Restore into a fresh database first: decompress the artifact, import it with the
 
 ## Rollback
 
-Redeploy the previous Render commit and Vercel deployment. Migrations are additive for this release, so do not roll the database backward; preserve it and roll the application forward with a corrective migration. Roll back immediately for integrity errors, doubled error rate, or readiness failures.
+Redeploy the previous Railway deployment and Vercel deployment. Migrations are additive for this release, so do not roll the database backward; preserve it and roll the application forward with a corrective migration. Roll back immediately for integrity errors, doubled error rate, or readiness failures.

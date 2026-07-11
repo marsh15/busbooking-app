@@ -68,7 +68,11 @@ The screenshots below document the core booking flow. Updated VoyageBus captures
 
 For schema development, use `npm run db:migrate --prefix backend`. Deploy checked-in migrations with `db:deploy`; do not use development migrations in production. The integration suite also requires Docker MySQL and runs migrations plus the seed before Vitest.
 
-For production, the checked-in Vercel rewrite targets the `smartbus-lite-api` Render service and Render applies migrations before deployment. Configure the real database, frontend origin, secrets, and optional OpenAI key in the provider dashboards. See [docs/07-OPERATIONS.md](docs/07-OPERATIONS.md) for monitoring, backups, restore, and rollback.
+### Railway backend deployment
+
+Create a Railway service from this GitHub repository and set its **Root Directory** to `/backend`. Railway detects the checked-in `Dockerfile`. In the service settings, set **Pre-Deploy Command** to `npm run db:deploy`, **Healthcheck Path** to `/api/ready`, and provide `DATABASE_URL`, `JWT_SECRET` (32+ characters), and `FRONTEND_ORIGIN` as Railway variables. `OPENAI_API_KEY` is optional; the deterministic parser works without it.
+
+After Railway generates a public domain, replace the Render destination in `vercel.json` with your `https://<railway-domain>/api/$1` URL and redeploy the frontend. See [docs/07-OPERATIONS.md](docs/07-OPERATIONS.md) for monitoring, backups, restore, and rollback.
 
 ## Limitations and future work
 

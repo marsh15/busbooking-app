@@ -8,7 +8,7 @@ async function start() {
   const environment = validateEnvironment()
   await connectDatabase()
   await seedDemoData()
-  const server = app.listen(environment.PORT, () => logger.info('server_started', { port: environment.PORT }))
+  const server = app.listen(environment.PORT, '0.0.0.0', () => logger.info('server_started', { port: environment.PORT }))
   const shutdown = () => server.close(() => void disconnectDatabase().finally(() => process.exit(0)))
   process.once('SIGINT', shutdown)
   process.once('SIGTERM', shutdown)
