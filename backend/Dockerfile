@@ -6,6 +6,10 @@ RUN npm ci
 
 FROM dependencies AS build
 
+# Prisma loads prisma.config.ts while generating the client and requires the
+# variable to exist, but it does not connect to the database during generation.
+ENV DATABASE_URL=mysql://build:build@localhost:3306/build
+
 COPY tsconfig.json prisma.config.ts ./
 COPY prisma ./prisma
 RUN npm run db:generate
