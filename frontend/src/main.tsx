@@ -5,11 +5,10 @@ import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import './overrides.css'
 import App from './App.tsx'
-import { Toaster } from 'sonner'
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } } })
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}><BrowserRouter><App /><Toaster richColors position="top-center" /></BrowserRouter></QueryClientProvider>
+    <QueryClientProvider client={queryClient}><BrowserRouter><App /></BrowserRouter></QueryClientProvider>
   </StrictMode>,
 )
