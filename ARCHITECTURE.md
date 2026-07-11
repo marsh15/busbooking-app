@@ -8,7 +8,6 @@ flowchart LR
   F -->|/api rewrite + cookies| A[Express API]
   A --> S[Validators + auth + services]
   S --> D[(MySQL/TiDB via Prisma)]
-  S -. zero-config demo mode .-> M[Deterministic in-memory seed store]
   A -->|optional structured parser| O[OpenAI Responses API]
 ```
 
@@ -16,7 +15,11 @@ flowchart LR
 
 `POST /api/bookings` validates one to six unique passengers, verifies the trip and seat ownership, then claims every selected seat inside one serialized transaction boundary. The booking group and all ticket rows are created only after every seat is available. If any seat is already taken, all work rolls back and the API returns `409 SEAT_UNAVAILABLE`.
 
-The demo store models that boundary with an async mutex, letting the concurrent-booking test demonstrate the same observable behavior. The Prisma schema contains the required unique `tripId + seatNumber` constraint for the production database implementation.
+Prisma runs this boundary as a serializable transaction. Each seat is changed with a conditional `AVAILABLE` update; if any update loses a race, the complete transaction rolls back and returns `409`. The integration suite exercises this behavior against MySQL rather than a mock client.
+
+## Database lifecycle
+
+The checked-in migration is the schema source of truth. Startup connects to the configured database and idempotently ensures the rolling demo dataset exists before accepting traffic. Seed IDs include the IST travel date, so reruns preserve historical bookings and do not reset seat state.
 
 ## Data ownership
 

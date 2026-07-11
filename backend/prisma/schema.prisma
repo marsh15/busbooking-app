@@ -31,6 +31,7 @@ model User {
   passwordHash String
   createdAt DateTime @default(now())
   bookingGroups BookingGroup[]
+  bookings Booking[]
 }
 model City {
   id String @id @default(uuid())
@@ -63,6 +64,8 @@ model Trip {
   travelDate DateTime
   departureTime String
   arrivalTime String
+  durationMinutes Int
+  isDemo Boolean @default(false)
   fare Decimal @db.Decimal(10,2)
   cancellationCutoffMinutes Int @default(360)
   cancellationFeePercent Decimal @db.Decimal(5,2)
@@ -81,6 +84,7 @@ model Seat {
   column Int
   status SeatStatus @default(AVAILABLE)
   trip Trip @relation(fields: [tripId], references: [id])
+  bookings Booking[]
   @@unique([tripId, seatNumber])
 }
 model BookingGroup {
@@ -97,6 +101,7 @@ model Booking {
   groupId String
   userId String
   tripId String
+  seatId String
   seatNumber String
   passengerName String
   passengerAge Int
@@ -105,6 +110,10 @@ model Booking {
   cancelledAt DateTime?
   refundAmount Decimal? @db.Decimal(10,2)
   group BookingGroup @relation(fields: [groupId], references: [id])
+  user User @relation(fields: [userId], references: [id])
   trip Trip @relation(fields: [tripId], references: [id])
+  seat Seat @relation(fields: [seatId], references: [id])
   @@index([userId, status])
+  @@index([groupId])
+  @@index([tripId, seatId])
 }

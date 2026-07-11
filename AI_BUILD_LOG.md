@@ -18,6 +18,6 @@ This record describes actual assistance used in this repository.
 ## Anticipated risks, not observed failures
 
 - The optional OpenAI structured-output integration is intentionally not activated without a key and a production API client. The deterministic parser always remains the available fallback.
-- The production Prisma repository layer is not active in zero-config demo mode. The schema documents the required durable transaction model; the in-memory seed store resets on restart.
+- Prisma/MySQL is now the only runtime data layer. Auth, search, booking, and cancellation use durable records; serializable transactions and conditional seat updates protect booking races.
 
 No Cursor, Claude Code, or Copilot was used.

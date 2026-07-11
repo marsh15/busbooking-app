@@ -9,6 +9,9 @@ cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
 npm install --prefix backend
 npm install --prefix frontend
+docker compose up -d
+npm run db:deploy --prefix backend
+npm run db:seed --prefix backend
 npm run dev --prefix backend
 npm run dev --prefix frontend
 ```
@@ -42,7 +45,7 @@ Read [ARCHITECTURE.md](ARCHITECTURE.md) and [API_DOCS.md](API_DOCS.md) for the i
 
 ```bash
 npm run typecheck --prefix backend
-npm test --prefix backend
+npm run test:integration --prefix backend
 npm run build --prefix frontend
 npm run lint --prefix frontend
 ```
@@ -57,12 +60,14 @@ npm run lint --prefix frontend
 
 ## Local database and deployment
 
-`docker compose up -d` starts the MySQL-compatible local database described by `DATABASE_URL`. The Prisma schema has the intended persistent MySQL/TiDB model. The checked-in runtime defaults to an in-memory seeded store so reviewers can run the full demo without provisioning a database; it resets on API restart. Moving to production means implementing the existing schema with Prisma repositories, setting a strong `JWT_SECRET`, and setting `FRONTEND_ORIGIN` to the Vercel URL.
+`docker compose up -d` starts MySQL 8.4 using the checked-in development credentials. Run `npm run db:deploy --prefix backend` to apply migrations and `npm run db:seed --prefix backend` to idempotently prepare the demo user and today/tomorrow trips. The API requires `DATABASE_URL` and fails during startup when the database is unavailable; there is no ephemeral fallback.
+
+For schema development, use `npm run db:migrate --prefix backend`. Deploy checked-in migrations with `db:deploy`; do not use development migrations in production. The integration suite also requires Docker MySQL and runs migrations plus the seed before Vitest.
 
 For production, deploy the frontend to Vercel and rewrite `/api/*` to the Render service. TiDB Cloud Starter is appropriate for a small demo only; apply spend limits and use a persistent-disk database before relying on it for real users.
 
 ## Limitations and future work
 
 - No real payments, payment tokens, refunds, insurance, coupons, boarding points, live tracking, or operator portal
-- API data is intentionally ephemeral in the local zero-config MVP mode
-- Add Prisma migrations/repositories, OpenAI Responses structured outputs, Playwright coverage, and deployment manifests before a production release
+- Local and deployed API instances require a reachable MySQL/TiDB database
+- Add OpenAI Responses verification, Playwright coverage, monitoring, backups, and final deployment values before a production release

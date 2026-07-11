@@ -3,7 +3,6 @@ import cookieParser from 'cookie-parser'
 import express from 'express'
 import helmet from 'helmet'
 import morgan from 'morgan'
-import { ensureDemoUser } from './data/store.js'
 import { requireCsrf } from './middleware/auth.js'
 import { aiRouter } from './routes/ai.js'
 import { authRouter } from './routes/auth.js'
@@ -13,8 +12,6 @@ import { routesRouter } from './routes/routes.js'
 import { errorHandler } from './utils/http.js'
 
 export const app = express()
-
-void ensureDemoUser()
 
 app.use(helmet({ crossOriginResourcePolicy: false }))
 app.use(cors({ origin: process.env.FRONTEND_ORIGIN?.split(',') ?? ['http://localhost:5173', 'http://127.0.0.1:5173'], credentials: true }))
