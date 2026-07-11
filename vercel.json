@@ -2,5 +2,5 @@
   "installCommand": "npm ci --prefix frontend",
   "buildCommand": "npm run build --prefix frontend",
   "outputDirectory": "frontend/dist",
-  "rewrites": [{ "source": "/api/(.*)", "destination": "https://smartbus-lite-api.onrender.com/api/$1" }]
+  "rewrites": [{ "source": "/api/(.*)", "destination": "https://busbooking-app-6t1d.onrender.com/api/$1" }]
 }
