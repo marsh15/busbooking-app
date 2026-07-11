@@ -7,7 +7,18 @@ if (!process.env.DATABASE_URL) {
 }
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient }
-const adapter = new PrismaMariaDb(process.env.DATABASE_URL)
+const databaseUrl = new URL(process.env.DATABASE_URL)
+
+// TiDB Cloud requires TLS. `sslaccept=strict` is used by Prisma CLI commands,
+// while the MariaDB driver adapter needs its TLS option configured directly.
+const adapter = new PrismaMariaDb({
+  host: databaseUrl.hostname,
+  port: Number(databaseUrl.port || 3306),
+  user: decodeURIComponent(databaseUrl.username),
+  password: decodeURIComponent(databaseUrl.password),
+  database: decodeURIComponent(databaseUrl.pathname.slice(1)),
+  ssl: true,
+})
 
 export const prisma = globalForPrisma.prisma ?? new PrismaClient({ adapter })
 
