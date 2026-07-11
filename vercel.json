@@ -1,1 +1,6 @@
-{ "rewrites": [{ "source": "/api/(.*)", "destination": "https://YOUR-RENDER-SERVICE.onrender.com/api/$1" }] }
+{
+  "installCommand": "npm ci --prefix frontend",
+  "buildCommand": "npm run build --prefix frontend",
+  "outputDirectory": "frontend/dist",
+  "rewrites": [{ "source": "/api/(.*)", "destination": "https://smartbus-lite-api.onrender.com/api/$1" }]
+}

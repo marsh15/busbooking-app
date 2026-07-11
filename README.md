@@ -46,8 +46,10 @@ Read [ARCHITECTURE.md](ARCHITECTURE.md) and [API_DOCS.md](API_DOCS.md) for the i
 ```bash
 npm run typecheck --prefix backend
 npm run test:integration --prefix backend
+npm test --prefix frontend
 npm run build --prefix frontend
 npm run lint --prefix frontend
+npm run test:e2e --prefix frontend
 ```
 
 ## Screenshots
@@ -64,10 +66,10 @@ npm run lint --prefix frontend
 
 For schema development, use `npm run db:migrate --prefix backend`. Deploy checked-in migrations with `db:deploy`; do not use development migrations in production. The integration suite also requires Docker MySQL and runs migrations plus the seed before Vitest.
 
-For production, deploy the frontend to Vercel and rewrite `/api/*` to the Render service. TiDB Cloud Starter is appropriate for a small demo only; apply spend limits and use a persistent-disk database before relying on it for real users.
+For production, the checked-in Vercel rewrite targets the `smartbus-lite-api` Render service and Render applies migrations before deployment. Configure the real database, frontend origin, secrets, and optional OpenAI key in the provider dashboards. See [docs/07-OPERATIONS.md](docs/07-OPERATIONS.md) for monitoring, backups, restore, and rollback.
 
 ## Limitations and future work
 
 - No real payments, payment tokens, refunds, insurance, coupons, boarding points, live tracking, or operator portal
 - Local and deployed API instances require a reachable MySQL/TiDB database
-- Add OpenAI Responses verification, Playwright coverage, monitoring, backups, and final deployment values before a production release
+- Live OpenAI verification and deployment smoke testing require private provider credentials

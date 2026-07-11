@@ -10,7 +10,7 @@ import { useAppStore } from '../store'
 const schema = z.object({ passengers: z.array(z.object({ seatNumber: z.string(), name: z.string().min(2, 'Enter the traveller’s name.'), age: z.coerce.number().min(1).max(120) })) })
 export function CheckoutPage() {
   const { tripId = '' } = useParams(); const navigate = useNavigate(); const selected = useAppStore((state) => state.selectedSeats); const setSelected = useAppStore((state) => state.setSelectedSeats)
-  const trip = useQuery({ queryKey: ['checkout-trip', tripId], queryFn: async () => { const cards = await client.trips({}); const found = cards.find((item) => item.id === tripId); if (!found) throw new Error('Trip missing'); return client.trip(found.busId, tripId) } })
+  const trip = useQuery({ queryKey: ['checkout-trip', tripId], queryFn: () => client.tripById(tripId) })
   type CheckoutValues = { passengers: Array<{ seatNumber: string; name: string; age: number }> }
   const form = useForm<CheckoutValues>({ resolver: zodResolver(schema) as Resolver<CheckoutValues>, defaultValues: { passengers: selected.map((seatNumber) => ({ seatNumber, name: '', age: 25 })) } }); const fields = useFieldArray({ control: form.control, name: 'passengers' })
   useEffect(() => { form.reset({ passengers: selected.map((seatNumber) => ({ seatNumber, name: '', age: 25 })) }) }, [selected, form])

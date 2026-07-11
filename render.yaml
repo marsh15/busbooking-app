@@ -3,9 +3,10 @@ services:
     name: smartbus-lite-api
     runtime: node
     rootDir: backend
-    buildCommand: npm ci && npm run typecheck
+    buildCommand: npm ci && npm run db:generate && npm run typecheck
+    preDeployCommand: npm run db:deploy
     startCommand: npm start
-    healthCheckPath: /api/health
+    healthCheckPath: /api/ready
     envVars:
       - key: NODE_ENV
         value: production
@@ -15,3 +16,9 @@ services:
         generateValue: true
       - key: DATABASE_URL
         sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-5.4-nano
+      - key: LOG_LEVEL
+        value: info

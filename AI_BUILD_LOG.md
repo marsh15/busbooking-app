@@ -19,5 +19,6 @@ This record describes actual assistance used in this repository.
 
 - The optional OpenAI structured-output integration is intentionally not activated without a key and a production API client. The deterministic parser always remains the available fallback.
 - Prisma/MySQL is now the only runtime data layer. Auth, search, booking, and cancellation use durable records; serializable transactions and conditional seat updates protect booking races.
+- Completed the production quality pass with structured request logs, rate limits, readiness checks, strict query validation, database pagination, accessible cancellation focus management, frontend unit tests, Playwright E2E, CI, backups, monitoring, and deployment migration hooks.
 
 No Cursor, Claude Code, or Copilot was used.

@@ -7,3 +7,5 @@ export interface User { id: string; name: string; email: string }
 export interface Ticket { id: string; seatNumber: string; passengerName: string; passengerAge: number; totalFare: number; status: 'ACTIVE' | 'CANCELLED'; cancelledAt?: string; refundAmount?: number; trip: TripCard }
 export interface BookingGroup { id: string; pnr: string; status: 'ACTIVE' | 'PARTIALLY_CANCELLED' | 'CANCELLED'; createdAt: string; tickets: Ticket[] }
 export interface ParsedSearch { source: string | null; destination: string | null; date: string | null; timePreference: string | null; busType: BusType | null; isAc: boolean | null; maxPrice: number | null; provider: string; warnings: string[] }
+export interface PageInfo { total: number; page: number; pageSize: number }
+export interface Paginated<T> { data: T; pagination: PageInfo }

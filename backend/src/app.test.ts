@@ -7,7 +7,7 @@ import { parseSearchFallback } from './services/ai-parser.js'
 
 const seedDate = '2030-01-10'
 
-beforeAll(async () => seedDemoData(seedDate))
+beforeAll(async () => seedDemoData(seedDate), 30_000)
 afterAll(async () => prisma.$disconnect())
 beforeEach(async () => {
   await prisma.booking.deleteMany()
@@ -32,6 +32,8 @@ describe.sequential('SmartBus API with MySQL persistence', () => {
     const response = await request(app).get('/api/health')
     expect(response.status).toBe(200)
     expect(response.body).toEqual({ data: { status: 'ok' } })
+    const ready = await request(app).get('/api/ready').expect(200)
+    expect(ready.body.data).toEqual({ status: 'ready', database: 'connected' })
   })
 
   it('persists registration and rejects a duplicate email', async () => {
@@ -65,8 +67,16 @@ describe.sequential('SmartBus API with MySQL persistence', () => {
     expect(trips.body.data).toHaveLength(2)
     expect(trips.body.data[0]).toMatchObject({ travelDate: seedDate, availableSeats: 24 })
     expect(typeof trips.body.data[0].fare).toBe('number')
+    expect(trips.body.pagination).toEqual({ total: 2, page: 1, pageSize: 10 })
     const detail = await request(app).get(`/api/buses/${trips.body.data[0].busId}`).query({ tripId: trips.body.data[0].id }).expect(200)
     expect(detail.body.data.seats[0]).toMatchObject({ number: '1A', status: 'AVAILABLE' })
+  })
+
+  it('rejects malformed search and pagination input', async () => {
+    await request(app).get('/api/buses').query({ travelDate: 'not-a-date' }).expect(422)
+    await request(app).get('/api/buses').query({ maxPrice: 'free' }).expect(422)
+    const owner = await signedInAgent('pagination@example.com')
+    await owner.agent.get('/api/bookings/me').query({ page: -1 }).expect(422)
   })
 
   it('allows exactly one concurrent owner to claim a seat', async () => {

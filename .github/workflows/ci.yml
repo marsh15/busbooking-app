@@ -1,0 +1,39 @@
+name: CI
+on:
+  push:
+  pull_request:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: smartbus
+          MYSQL_USER: smartbus
+          MYSQL_PASSWORD: smartbus_dev_password
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -uroot -proot"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      DATABASE_URL: mysql://smartbus:smartbus_dev_password@127.0.0.1:3306/smartbus
+      JWT_SECRET: ci-only-secret-at-least-thirty-two-characters
+      FRONTEND_ORIGIN: http://127.0.0.1:5173
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: "**/package-lock.json" }
+      - run: npm ci --prefix backend
+      - run: npm ci --prefix frontend
+      - run: npm run db:generate --prefix backend
+      - run: npm run test:integration --prefix backend
+      - run: npm run typecheck --prefix backend
+      - run: npm test --prefix frontend
+      - run: npm run lint --prefix frontend
+      - run: npm run build --prefix frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - run: npm run test:e2e --prefix frontend

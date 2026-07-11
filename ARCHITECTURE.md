@@ -21,6 +21,10 @@ Prisma runs this boundary as a serializable transaction. Each seat is changed wi
 
 The checked-in migration is the schema source of truth. Startup connects to the configured database and idempotently ensures the rolling demo dataset exists before accepting traffic. Seed IDs include the IST travel date, so reruns preserve historical bookings and do not reset seat state.
 
+## Production boundaries
+
+The API emits structured JSON request/error logs, exposes separate liveness and database-readiness probes, and applies global plus tighter authentication/AI rate limits. Search and booking-history collections are paginated. CI verifies MySQL migrations, backend integration behavior, frontend units, production builds, and the complete Playwright booking/cancellation journey.
+
 ## Data ownership
 
 - A session identifies one user.

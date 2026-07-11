@@ -1,0 +1,12 @@
+name: Production health monitor
+on:
+  schedule: [{ cron: "*/15 * * * *" }]
+  workflow_dispatch:
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check API readiness
+        run: curl --fail --retry 3 --max-time 15 "$PRODUCTION_API_URL/api/ready"
+        env:
+          PRODUCTION_API_URL: ${{ secrets.PRODUCTION_API_URL }}

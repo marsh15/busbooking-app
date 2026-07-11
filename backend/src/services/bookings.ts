@@ -49,9 +49,12 @@ export async function createBooking(userId: string, tripId: string, passengers: 
   throw new ApiError(500, 'PNR_GENERATION_FAILED', 'Could not generate a booking reference. Please try again.')
 }
 
-export async function getBookings(userId: string) {
-  const groups = await prisma.bookingGroup.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, include: hydratedGroupInclude })
-  return groups.map(bookingGroupDto)
+export async function getBookings(userId: string, page = 1, pageSize = 20) {
+  const [groups, total] = await prisma.$transaction([
+    prisma.bookingGroup.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, skip: (page - 1) * pageSize, take: pageSize, include: hydratedGroupInclude }),
+    prisma.bookingGroup.count({ where: { userId } }),
+  ])
+  return { bookings: groups.map(bookingGroupDto), total, page, pageSize }
 }
 
 export async function getBooking(userId: string, groupId: string) {

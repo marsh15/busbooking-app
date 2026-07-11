@@ -22,19 +22,26 @@ export async function findRoute(source?: string, destination?: string) {
 }
 
 export async function searchTrips(filters: SearchFilters) {
+  const departure: Record<NonNullable<SearchFilters['departure']>, Prisma.TripWhereInput> = {
+    morning: { departureTime: { lt: '12:00' } },
+    afternoon: { departureTime: { gte: '12:00', lt: '17:00' } },
+    evening: { departureTime: { gte: '17:00', lt: '20:00' } },
+    night: { departureTime: { gte: '20:00' } },
+  }
   const where: Prisma.TripWhereInput = {
     ...(filters.routeId ? { routeId: filters.routeId } : {}),
     ...(filters.travelDate ? { travelDate: new Date(`${filters.travelDate}T00:00:00.000Z`) } : {}),
     ...(filters.maxPrice ? { fare: { lte: filters.maxPrice } } : {}),
     ...(filters.isAc === undefined ? {} : { bus: { isAc: filters.isAc } }),
     ...(filters.busType ? { bus: { ...(filters.isAc === undefined ? {} : { isAc: filters.isAc }), type: filters.busType } } : {}),
+    ...(filters.departure ? departure[filters.departure] : {}),
   }
-  const trips = (await prisma.trip.findMany({ where, include: tripInclude })).map(tripDto)
-  const filtered = trips.filter((trip) => {
-    if (!filters.departure) return true
-    const hour = Number(trip.departureTime.slice(0, 2))
-    const period = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : hour < 20 ? 'evening' : 'night'
-    return period === filters.departure
-  })
-  return filtered.sort((first, second) => filters.sort === 'price' ? first.fare - second.fare : filters.sort === 'departure' ? first.departureTime.localeCompare(second.departureTime) : 0)
+  const page = filters.page ?? 1
+  const pageSize = filters.pageSize ?? 10
+  const orderBy: Prisma.TripOrderByWithRelationInput = filters.sort === 'price' ? { fare: 'asc' } : filters.sort === 'departure' ? { departureTime: 'asc' } : { id: 'asc' }
+  const [records, total] = await prisma.$transaction([
+    prisma.trip.findMany({ where, orderBy, skip: (page - 1) * pageSize, take: pageSize, include: tripInclude }),
+    prisma.trip.count({ where }),
+  ])
+  return { trips: records.map(tripDto), total, page, pageSize }
 }

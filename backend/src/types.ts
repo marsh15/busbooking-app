@@ -64,4 +64,6 @@ export interface SearchFilters {
   busType?: BusType
   departure?: 'morning' | 'afternoon' | 'evening' | 'night'
   sort?: 'price' | 'departure'
+  page?: number
+  pageSize?: number
 }

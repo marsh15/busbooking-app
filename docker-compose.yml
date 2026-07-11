@@ -9,7 +9,7 @@ services:
       MYSQL_USER: smartbus
       MYSQL_PASSWORD: smartbus_dev_password
     ports:
-      - "3306:3306"
+      - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:

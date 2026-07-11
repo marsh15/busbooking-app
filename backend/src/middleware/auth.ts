@@ -2,7 +2,11 @@ import type { NextFunction, Request, Response } from 'express'
 import jwt from 'jsonwebtoken'
 import { ApiError } from '../utils/http.js'
 
-const secret = () => process.env.JWT_SECRET || 'development-only-change-me'
+const secret = () => {
+  const value = process.env.JWT_SECRET
+  if (!value && process.env.NODE_ENV === 'production') throw new Error('JWT_SECRET is required in production')
+  return value || 'development-only-change-me-development-only'
+}
 export interface AuthRequest extends Request { userId?: string }
 
 export function issueSession(response: Response, userId: string) {
