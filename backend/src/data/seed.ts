@@ -70,16 +70,14 @@ export async function seedDemoData(seedDate = process.env.SEED_DATE || istDate()
           cancellationFeePercent: 10,
         }
         await prisma.trip.upsert({ where: { id: tripId }, update: {}, create: { id: tripId, ...data } })
+        const seats = []
         for (let row = 1; row <= 6; row += 1) {
           for (const [column, suffix] of [[1, 'A'], [2, 'B'], [4, 'C'], [5, 'D']] as const) {
             const seatNumber = `${row}${suffix}`
-            await prisma.seat.upsert({
-              where: { tripId_seatNumber: { tripId, seatNumber } },
-              update: {},
-              create: { id: stableId('seat', `${tripKey}:${seatNumber}`), tripId, seatNumber, deck: 1, row, column },
-            })
+            seats.push({ id: stableId('seat', `${tripKey}:${seatNumber}`), tripId, seatNumber, deck: 1, row, column })
           }
         }
+        await prisma.seat.createMany({ data: seats, skipDuplicates: true })
       }
     }
   }
