@@ -1,6 +1,6 @@
-# SmartBus Lite
+# VoyageBus
 
-SmartBus Lite is a portfolio-ready South India bus-booking MVP. It supports manual and natural-language trip search, visible seat availability, protected multi-seat mock bookings, ticket-level cancellation, and a calm warm-travel interface.
+VoyageBus is a portfolio-ready South India bus-booking application. It supports manual and natural-language trip search, visible seat availability, protected multi-seat mock bookings, ticket-level cancellation, and a calm, dependable interface.
 
 ## Quick start
 
@@ -53,6 +53,8 @@ npm run test:e2e --prefix frontend
 ```
 
 ## Screenshots
+
+The screenshots below document the core booking flow. Updated VoyageBus captures can replace them after deployment.
 
 ![Home search](screenshots/home.png)
 
