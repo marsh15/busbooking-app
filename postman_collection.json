@@ -1,0 +1,11 @@
+{
+  "info": { "name": "SmartBus Lite API", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json" },
+  "variable": [{ "key": "baseUrl", "value": "http://localhost:4000/api" }],
+  "item": [
+    { "name": "Health", "request": { "method": "GET", "url": "{{baseUrl}}/health" } },
+    { "name": "CSRF token", "request": { "method": "GET", "url": "{{baseUrl}}/auth/csrf" } },
+    { "name": "Register", "request": { "method": "POST", "header": [{ "key": "x-csrf-token", "value": "{{csrfToken}}" }], "body": { "mode": "raw", "raw": "{\n  \"name\": \"Asha Rao\",\n  \"email\": \"asha@example.com\",\n  \"password\": \"SmartBus123!\"\n}" }, "url": "{{baseUrl}}/auth/register" } },
+    { "name": "Search route", "request": { "method": "GET", "url": "{{baseUrl}}/routes/search?source=Hyderabad&destination=Vijayawada" } },
+    { "name": "Parse natural search", "request": { "method": "POST", "header": [{ "key": "x-csrf-token", "value": "{{csrfToken}}" }], "body": { "mode": "raw", "raw": "{\"query\":\"AC sleeper Hyderabad to Bengaluru tomorrow night under ₹1200\"}" }, "url": "{{baseUrl}}/ai/parse-search" } }
+  ]
+}

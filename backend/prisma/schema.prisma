@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum BusType {
+  SLEEPER
+  SEATER
+}
+enum SeatStatus {
+  AVAILABLE
+  BOOKED
+}
+enum BookingStatus {
+  ACTIVE
+  CANCELLED
+}
+enum GroupStatus {
+  ACTIVE
+  PARTIALLY_CANCELLED
+  CANCELLED
+}
+
+model User {
+  id String @id @default(uuid())
+  name String
+  email String @unique
+  passwordHash String
+  createdAt DateTime @default(now())
+  bookingGroups BookingGroup[]
+}
+model City {
+  id String @id @default(uuid())
+  name String @unique
+  sources Route[] @relation("SourceCity")
+  destinations Route[] @relation("DestinationCity")
+}
+model Route {
+  id String @id @default(uuid())
+  sourceId String
+  destinationId String
+  source City @relation("SourceCity", fields: [sourceId], references: [id])
+  destination City @relation("DestinationCity", fields: [destinationId], references: [id])
+  trips Trip[]
+  @@unique([sourceId, destinationId])
+}
+model Bus {
+  id String @id @default(uuid())
+  name String
+  operator String
+  type BusType
+  isAc Boolean
+  amenities Json
+  trips Trip[]
+}
+model Trip {
+  id String @id @default(uuid())
+  routeId String
+  busId String
+  travelDate DateTime
+  departureTime String
+  arrivalTime String
+  fare Decimal @db.Decimal(10,2)
+  cancellationCutoffMinutes Int @default(360)
+  cancellationFeePercent Decimal @db.Decimal(5,2)
+  route Route @relation(fields: [routeId], references: [id])
+  bus Bus @relation(fields: [busId], references: [id])
+  seats Seat[]
+  bookings Booking[]
+  @@index([routeId, travelDate])
+}
+model Seat {
+  id String @id @default(uuid())
+  tripId String
+  seatNumber String
+  deck Int
+  row Int
+  column Int
+  status SeatStatus @default(AVAILABLE)
+  trip Trip @relation(fields: [tripId], references: [id])
+  @@unique([tripId, seatNumber])
+}
+model BookingGroup {
+  id String @id @default(uuid())
+  pnr String @unique
+  userId String
+  status GroupStatus @default(ACTIVE)
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id])
+  bookings Booking[]
+}
+model Booking {
+  id String @id @default(uuid())
+  groupId String
+  userId String
+  tripId String
+  seatNumber String
+  passengerName String
+  passengerAge Int
+  totalFare Decimal @db.Decimal(10,2)
+  status BookingStatus @default(ACTIVE)
+  cancelledAt DateTime?
+  refundAmount Decimal? @db.Decimal(10,2)
+  group BookingGroup @relation(fields: [groupId], references: [id])
+  trip Trip @relation(fields: [tripId], references: [id])
+  @@index([userId, status])
+}
