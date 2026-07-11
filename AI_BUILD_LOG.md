@@ -7,6 +7,7 @@ This record describes actual assistance used in this repository.
 - Read the supplied MVP specification and the existing scaffold/documents.
 - Implemented the Express API, deterministic IST data, parser fallback, transaction simulation, and React booking interface.
 - Added documentation, environment examples, Prisma schema, tests, and build/type/lint checks.
+- Ran a real local-browser verification of demo login → search → two-seat selection → protected checkout → mock confirmation, and captured the project screenshots.
 - Reviewed type and lint failures during implementation and corrected form resolver typing and a conditional-expression lint issue.
 
 ## Observed AI mistakes and review fixes

@@ -1,7 +1,7 @@
 import axios from 'axios'
 import type { BookingGroup, ParsedSearch, RouteInfo, TripCard, TripDetail, User } from '../types'
 
-const api = axios.create({ baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api', withCredentials: true })
+const api = axios.create({ baseURL: import.meta.env.VITE_API_BASE_URL || '/api', withCredentials: true })
 let csrfToken: string | undefined
 api.interceptors.request.use((config) => { if (!['get', 'head'].includes(config.method || 'get') && csrfToken) config.headers['x-csrf-token'] = csrfToken; return config })
 async function csrf() { if (!csrfToken) csrfToken = (await api.get('/auth/csrf')).data.data.token as string }

@@ -16,7 +16,7 @@ busesRouter.get('/', (request, response) => {
   const trips = searchTrips({
     routeId: request.query.routeId as string | undefined, travelDate: request.query.travelDate as string | undefined,
     maxPrice: request.query.maxPrice ? Number(request.query.maxPrice) : undefined, isAc: asBool(request.query.isAc),
-    busType: request.query.busType as 'SLEEPER' | 'SEATER' | undefined, departure: request.query.departure as 'morning' | 'afternoon' | 'evening' | 'night' | undefined,
+    busType: request.query.busType as 'SLEEPER' | 'SEATER' | undefined, departure: request.query.departure as 'morning' | 'afternoon' | 'evening' | 'night' | undefined, sort: request.query.sort as 'price' | 'departure' | undefined,
   })
   response.json({ data: trips.map(card), pagination: { total: trips.length, page: 1, pageSize: trips.length } })
 })

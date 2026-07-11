@@ -7,7 +7,7 @@ export function findRoute(source?: string, destination?: string) {
 }
 
 export function searchTrips(filters: SearchFilters) {
-  return db.trips.filter((trip) => {
+  const trips = db.trips.filter((trip) => {
     const hour = Number(trip.departureTime.slice(0, 2))
     const period = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : hour < 20 ? 'evening' : 'night'
     return (!filters.routeId || trip.route.id === filters.routeId)
@@ -17,4 +17,5 @@ export function searchTrips(filters: SearchFilters) {
       && (!filters.busType || trip.bus.type === filters.busType)
       && (!filters.departure || period === filters.departure)
   })
+  return trips.sort((first, second) => filters.sort === 'price' ? first.fare - second.fare : filters.sort === 'departure' ? first.departureTime.localeCompare(second.departureTime) : 0)
 }

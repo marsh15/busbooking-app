@@ -47,6 +47,14 @@ npm run build --prefix frontend
 npm run lint --prefix frontend
 ```
 
+## Screenshots
+
+![Home search](screenshots/home.png)
+
+![Seat selection](screenshots/seat-selection.png)
+
+![Booking confirmation](screenshots/booking-confirmation.png)
+
 ## Local database and deployment
 
 `docker compose up -d` starts the MySQL-compatible local database described by `DATABASE_URL`. The Prisma schema has the intended persistent MySQL/TiDB model. The checked-in runtime defaults to an in-memory seeded store so reviewers can run the full demo without provisioning a database; it resets on API restart. Moving to production means implementing the existing schema with Prisma repositories, setting a strong `JWT_SECRET`, and setting `FRONTEND_ORIGIN` to the Vercel URL.

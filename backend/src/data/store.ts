@@ -12,7 +12,7 @@ const pairs: Array<[string, string]> = [
 ]
 
 const buses: Bus[] = [
-  { id: 'bus-amber', name: 'Amber Star', operator: 'Saffron Travels', type: 'SLEEPER', isAc: true, amenities: ['Wi-Fi', 'Charging point', 'Blanket', 'Live tracking'] },
+  { id: 'bus-amber', name: 'Amber Star', operator: 'Saffron Travels', type: 'SLEEPER', isAc: true, amenities: ['Wi-Fi', 'Charging point', 'Blanket', 'Arrival alerts'] },
   { id: 'bus-coast', name: 'Coastal Express', operator: 'Blue Coast', type: 'SEATER', isAc: true, amenities: ['Wi-Fi', 'Water bottle', 'Charging point'] },
   { id: 'bus-night', name: 'Night Rider', operator: 'Deccan Mobility', type: 'SLEEPER', isAc: false, amenities: ['Blanket', 'Reading light', 'First aid'] },
   { id: 'bus-day', name: 'Dayline', operator: 'South Link', type: 'SEATER', isAc: false, amenities: ['Charging point', 'Water bottle'] },

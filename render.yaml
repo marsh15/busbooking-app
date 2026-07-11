@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: smartbus-lite-api
+    runtime: node
+    rootDir: backend
+    buildCommand: npm ci && npm run typecheck
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FRONTEND_ORIGIN
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false

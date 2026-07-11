@@ -63,4 +63,5 @@ export interface SearchFilters {
   isAc?: boolean
   busType?: BusType
   departure?: 'morning' | 'afternoon' | 'evening' | 'night'
+  sort?: 'price' | 'departure'
 }

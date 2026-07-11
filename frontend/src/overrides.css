@@ -1,0 +1,14 @@
+.parsed-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(90px, 1fr));
+  gap: 8px;
+  margin: 11px 0;
+}
+.parsed-fields label { display: grid; gap: 4px; font-size: 10px; color: #6c7780; font-weight: 750; }
+.parsed-fields input { height: 32px; border: 1px solid #efcfb0; border-radius: 6px; padding: 0 7px; background: #fff; color: #314a5a; font-size: 12px; }
+.seat-grid { grid-template-columns: repeat(2, 1fr) 28px repeat(2, 1fr); }
+.seat.column-1 { grid-column: 1; }
+.seat.column-2 { grid-column: 2; }
+.seat.column-4 { grid-column: 4; }
+.seat.column-5 { grid-column: 5; }
+@media (max-width: 480px) { .parsed-fields { grid-template-columns: 1fr; } }
