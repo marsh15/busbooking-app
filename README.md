@@ -1,14 +1,49 @@
 # VoyageBus
 
-VoyageBus is a portfolio-ready South India bus-booking application. It supports manual and natural-language trip search, visible seat availability, protected multi-seat mock bookings, ticket-level cancellation, and a calm, dependable interface.
+VoyageBus is a full-stack South India bus-booking application built to demonstrate production-minded software engineering, not just UI assembly. Travellers can search routes manually or in natural language, compare scheduled trips, inspect live seat state, reserve up to six seats atomically, retrieve grouped tickets, and cancel one passenger without changing the rest of the booking.
+
+The product identity is intentionally calm and information-first: a quiet digital departure lounge where route, time, fare, and seat state stay easy to trust.
+
+## Engineering highlights
+
+- **Race-safe seat booking:** a serializable Prisma transaction conditionally claims every requested seat and rolls the complete operation back when any seat loses a race.
+- **Real persistence:** MySQL is the source of truth; there is no in-memory production fallback. Migrations and idempotent rolling seed data are checked in.
+- **Secure browser session:** Argon2id password hashes, Secure/HttpOnly signed session cookies, double-submit CSRF protection, Helmet, credentialed CORS allowlists, bounded JSON input, and route-specific rate limits.
+- **Constrained AI assistance:** optional structured OpenAI parsing only proposes editable filters. A deterministic parser keeps search available without a provider key, and inventory always comes from the database.
+- **Complete booking lifecycle:** multi-passenger PNR groups, ticket-level cancellation, server-calculated mock refunds, conflict recovery, pagination, and accessible loading/error/empty states.
+- **Operational proof:** database readiness and process liveness are separate, request logs are structured, CI provisions MySQL, and the primary journey is covered from unit tests through Playwright.
+
+## Architecture
+
+```mermaid
+flowchart LR
+  B[Traveller browser] --> F[React 19 + Vite]
+  F -->|Same-origin /api + cookies| A[Express 5 API]
+  A --> V[Zod validators + auth]
+  V --> S[Domain services]
+  S --> D[(MySQL via Prisma)]
+  A -. optional structured parsing .-> O[OpenAI Responses API]
+```
+
+The frontend never decides whether a seat is available. It submits the selected seat numbers, and the API establishes ownership inside one transaction. See [ARCHITECTURE.md](ARCHITECTURE.md) for the boundaries and [API_DOCS.md](API_DOCS.md) for the HTTP contract.
+
+## Product flow
+
+1. Search one of six seeded South India corridors for today or tomorrow.
+2. Filter departures and inspect authoritative seat availability.
+3. Select up to six seats and enter traveller details.
+4. Sign in or use the demo account, then confirm a simulated payment.
+5. Retrieve the PNR group and cancel individual active tickets before the cutoff.
 
 ## Quick start
+
+Prerequisites: Node.js 22+, Docker, and npm.
 
 ```bash
 cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
-npm install --prefix backend
-npm install --prefix frontend
+npm ci --prefix backend
+npm ci --prefix frontend
 docker compose up -d
 npm run db:deploy --prefix backend
 npm run db:seed --prefix backend
@@ -16,30 +51,14 @@ npm run dev --prefix backend
 npm run dev --prefix frontend
 ```
 
-Open `http://localhost:5173`. The API runs at `http://localhost:4000`.
+Open `http://localhost:5173`. The API runs at `http://localhost:4000` and local MySQL is published on port `3307`.
 
-Use the seeded demo account:
+Demo account:
 
-- Email: `demo@smartbus.in`
-- Password: `SmartBus123!`
+- Email: `demo@voyagebus.in`
+- Password: `VoyageBus123!`
 
-## What is included
-
-- Six seeded South India routes and 24 IST trips across today and tomorrow
-- Manual search, filters, empty/loading/error states, and responsive trip cards
-- Offline deterministic natural-language parsing (works with no OpenAI key)
-- HttpOnly signed session cookie, CSRF double-submit token, Helmet, CORS, Argon2id hashes
-- Server-authoritative, up-to-six-seat mock booking with atomic conflict handling
-- PNR-style confirmation, grouped booking history, and ticket-level mock cancellation/refund
-
-## Architecture
-
-- `frontend/` — React 19, Vite, React Router, TanStack Query, React Hook Form, Zod, Axios, Zustand
-- `backend/` — Express 5, TypeScript, security middleware, API routes/services/validators
-- `backend/prisma/schema.prisma` — MySQL/TiDB production data contract
-- `docs/` — product, technical, flow, visual, schema, and implementation source documents
-
-Read [ARCHITECTURE.md](ARCHITECTURE.md) and [API_DOCS.md](API_DOCS.md) for the implementation details.
+`OPENAI_API_KEY` is optional. Manual search and the deterministic natural-language parser work without it.
 
 ## Verification
 
@@ -47,35 +66,33 @@ Read [ARCHITECTURE.md](ARCHITECTURE.md) and [API_DOCS.md](API_DOCS.md) for the i
 npm run typecheck --prefix backend
 npm run test:integration --prefix backend
 npm test --prefix frontend
-npm run build --prefix frontend
 npm run lint --prefix frontend
+npm run format:check --prefix frontend
+npm run build --prefix frontend
 npm run test:e2e --prefix frontend
 ```
 
-## Screenshots
+| Layer | What it proves |
+| --- | --- |
+| Backend integration | migrations, persistence, auth, input errors, concurrency, rollback, cancellation ownership, and parser fallback |
+| Frontend unit | auth redirect preservation, checkout state isolation, passenger editing, and accessible seat behavior |
+| Playwright | login → search → two-seat booking → confirmation → partial and final cancellation |
+| CI | clean installation, MySQL service health, every check above, and Chromium setup |
 
-The screenshots below document the core booking flow. Updated VoyageBus captures can replace them after deployment.
+## Repository map
 
-![Home search](screenshots/home.png)
+- `frontend/` — React, React Router, TanStack Query, React Hook Form, Zod, Zustand, and responsive CSS
+- `backend/` — Express routes, middleware, services, validation, logging, and integration tests
+- `backend/prisma/` — schema, migration, and deterministic seed entrypoint
+- `docs/` — PRD, technical requirements, app flow, UI brief, schema rules, implementation plan, and operations runbook
+- `.github/workflows/` — CI, production readiness monitoring, and database backup automation
 
-![Seat selection](screenshots/seat-selection.png)
+## Deployment
 
-![Booking confirmation](screenshots/booking-confirmation.png)
+The frontend is configured for Vercel and proxies `/api/*` to the deployed API. The backend includes a production Dockerfile plus Railway/Render-compatible configuration. Apply migrations as a pre-deploy step and use `/api/ready` as the database-aware health check. Full deployment and recovery guidance lives in [docs/07-OPERATIONS.md](docs/07-OPERATIONS.md).
 
-## Local database and deployment
+## Deliberate scope
 
-`docker compose up -d` starts MySQL 8.4 using the checked-in development credentials. Run `npm run db:deploy --prefix backend` to apply migrations and `npm run db:seed --prefix backend` to idempotently prepare the demo user and today/tomorrow trips. The API requires `DATABASE_URL` and fails during startup when the database is unavailable; there is no ephemeral fallback.
+VoyageBus does not process money. Payment, refunds, coupons, insurance, live GPS, email delivery, and operator administration are explicitly outside this demo. The UI labels simulated behavior plainly; the engineering focus is correctness, security boundaries, state design, and a complete booking lifecycle.
 
-For schema development, use `npm run db:migrate --prefix backend`. Deploy checked-in migrations with `db:deploy`; do not use development migrations in production. The integration suite also requires Docker MySQL and runs migrations plus the seed before Vitest.
-
-### Railway backend deployment
-
-Create a Railway service from this GitHub repository and set its **Root Directory** to `/backend`. Railway detects the checked-in `Dockerfile`. In the service settings, set **Pre-Deploy Command** to `npm run db:deploy`, **Healthcheck Path** to `/api/ready`, and provide `DATABASE_URL`, `JWT_SECRET` (32+ characters), and `FRONTEND_ORIGIN` as Railway variables. `OPENAI_API_KEY` is optional; the deterministic parser works without it.
-
-After Railway generates a public domain, replace the Render destination in `vercel.json` with your `https://<railway-domain>/api/$1` URL and redeploy the frontend. See [docs/07-OPERATIONS.md](docs/07-OPERATIONS.md) for monitoring, backups, restore, and rollback.
-
-## Limitations and future work
-
-- No real payments, payment tokens, refunds, insurance, coupons, boarding points, live tracking, or operator portal
-- Local and deployed API instances require a reachable MySQL/TiDB database
-- Live OpenAI verification and deployment smoke testing require private provider credentials
+Future production work would add payment-provider idempotency, email verification and recovery, distributed rate limiting, session revocation, metrics/tracing, and provider-backed ticket notifications.

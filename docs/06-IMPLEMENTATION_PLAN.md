@@ -1,4 +1,4 @@
-# SmartBus Lite — Implementation Plan
+# VoyageBus — Implementation Plan
 
 ## Phase 1: Foundation
 

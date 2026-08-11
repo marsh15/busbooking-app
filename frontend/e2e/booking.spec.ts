@@ -2,13 +2,15 @@ import { expect, test } from '@playwright/test'
 
 test('login, book two seats, confirm, and partially cancel', async ({ page }) => {
   await page.goto('/login')
-  await page.getByLabel('Email address').fill('demo@smartbus.in')
-  await page.getByLabel('Password').fill('SmartBus123!')
+  await page.getByLabel('Email address').fill('demo@voyagebus.in')
+  await page.getByLabel('Password').fill('VoyageBus123!')
   await page.getByRole('button', { name: 'Log in' }).click()
   await expect(page).toHaveURL(/\/$/)
 
   await page.getByRole('button', { name: /Hyderabad → Bengaluru/ }).click()
-  const tomorrow = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date(Date.now() + 24 * 60 * 60 * 1000))
+  const tomorrow = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(
+    new Date(Date.now() + 24 * 60 * 60 * 1000),
+  )
   await page.getByLabel('Travel date').fill(tomorrow)
   await page.getByRole('button', { name: /Search buses/ }).click()
   await expect(page.getByRole('heading', { name: /Hyderabad.*Bengaluru/ })).toBeVisible()

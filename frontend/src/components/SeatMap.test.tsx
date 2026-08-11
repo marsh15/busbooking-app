@@ -4,7 +4,14 @@ import { describe, expect, it, vi } from 'vitest'
 import { SeatMap } from './SeatMap'
 import type { Seat } from '../types'
 
-const seats: Seat[] = Array.from({ length: 8 }, (_, index) => ({ id: String(index), number: `${index + 1}A`, deck: 1, row: index + 1, column: 1, status: index === 7 ? 'BOOKED' : 'AVAILABLE' }))
+const seats: Seat[] = Array.from({ length: 8 }, (_, index) => ({
+  id: String(index),
+  number: `${index + 1}A`,
+  deck: 1,
+  row: index + 1,
+  column: 1,
+  status: index === 7 ? 'BOOKED' : 'AVAILABLE',
+}))
 
 describe('SeatMap', () => {
   it('announces availability and blocks booked seats', () => {

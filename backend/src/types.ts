@@ -2,8 +2,15 @@ export type BusType = 'SLEEPER' | 'SEATER'
 export type BookingStatus = 'ACTIVE' | 'CANCELLED'
 export type GroupStatus = 'ACTIVE' | 'PARTIALLY_CANCELLED' | 'CANCELLED'
 
-export interface City { id: string; name: string }
-export interface Route { id: string; source: City; destination: City }
+export interface City {
+  id: string
+  name: string
+}
+export interface Route {
+  id: string
+  source: City
+  destination: City
+}
 export interface Bus {
   id: string
   name: string
@@ -33,7 +40,12 @@ export interface Trip {
   cancellationFeePercent: number
   seats: Seat[]
 }
-export interface User { id: string; name: string; email: string; passwordHash: string }
+export interface User {
+  id: string
+  name: string
+  email: string
+  passwordHash: string
+}
 export interface Booking {
   id: string
   groupId: string

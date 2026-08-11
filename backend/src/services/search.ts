@@ -33,14 +33,27 @@ export async function searchTrips(filters: SearchFilters) {
     ...(filters.travelDate ? { travelDate: new Date(`${filters.travelDate}T00:00:00.000Z`) } : {}),
     ...(filters.maxPrice ? { fare: { lte: filters.maxPrice } } : {}),
     ...(filters.isAc === undefined ? {} : { bus: { isAc: filters.isAc } }),
-    ...(filters.busType ? { bus: { ...(filters.isAc === undefined ? {} : { isAc: filters.isAc }), type: filters.busType } } : {}),
+    ...(filters.busType
+      ? { bus: { ...(filters.isAc === undefined ? {} : { isAc: filters.isAc }), type: filters.busType } }
+      : {}),
     ...(filters.departure ? departure[filters.departure] : {}),
   }
   const page = filters.page ?? 1
   const pageSize = filters.pageSize ?? 10
-  const orderBy: Prisma.TripOrderByWithRelationInput = filters.sort === 'price' ? { fare: 'asc' } : filters.sort === 'departure' ? { departureTime: 'asc' } : { id: 'asc' }
+  const orderBy: Prisma.TripOrderByWithRelationInput =
+    filters.sort === 'price'
+      ? { fare: 'asc' }
+      : filters.sort === 'departure'
+        ? { departureTime: 'asc' }
+        : { id: 'asc' }
   const [records, total] = await prisma.$transaction([
-    prisma.trip.findMany({ where, orderBy, skip: (page - 1) * pageSize, take: pageSize, include: tripInclude }),
+    prisma.trip.findMany({
+      where,
+      orderBy,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      include: tripInclude,
+    }),
     prisma.trip.count({ where }),
   ])
   return { trips: records.map(tripDto), total, page, pageSize }

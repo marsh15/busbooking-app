@@ -6,7 +6,7 @@ colors:
   voyage-teal: "#0F766E"
   voyage-teal-deep: "#0A5C56"
   signal-orange: "#F97316"
-  true-off-white: "#FAFAF9"
+  true-off-white: "#F5F7F6"
   surface: "#FFFFFF"
   ink: "#132C3D"
   muted: "#5F707C"
@@ -19,12 +19,12 @@ typography:
     lineHeight: 1.05
     letterSpacing: "-0.03em"
   body:
-    fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "Avenir Next, Avenir, Segoe UI, ui-sans-serif, system-ui, sans-serif"
     fontSize: "1rem"
     fontWeight: 400
     lineHeight: 1.6
   label:
-    fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "Avenir Next, Avenir, Segoe UI, ui-sans-serif, system-ui, sans-serif"
     fontSize: "0.75rem"
     fontWeight: 700
     lineHeight: 1.3
@@ -56,7 +56,7 @@ components:
 
 **Creative North Star: "The Quiet Departure Lounge"**
 
-VoyageBus should feel like a composed, well-run departure lounge: calm enough to think, precise enough to trust, and clearly connected to real travel. The supplied SmartBus screens are the baseline. Improvements should sharpen their hierarchy, spacing, imagery, and component consistency without replacing their editorial character.
+VoyageBus should feel like a composed, well-run departure lounge: calm enough to think, precise enough to trust, and clearly connected to real travel. Improvements should sharpen hierarchy, spacing, imagery, and component consistency without losing that editorial character.
 
 The interface rejects generic landing-page scaffolding, invented social proof, decorative card collections, and visual effects without product purpose. Brand expression comes from deep navy, controlled teal, authentic Indian travel photography, disciplined type, and small moments of orange urgency.
 
@@ -74,7 +74,7 @@ Deep navy provides continuity and trust; teal identifies VoyageBus actions; oran
 - **Signal Orange** (#F97316): offers, urgency, warnings, and small highlights only.
 
 ### Neutral
-- **True Off-White** (#FAFAF9): page background without beige tint.
+- **True Off-White** (#F5F7F6): cool page background without beige tint.
 - **Surface White** (#FFFFFF): forms and contained workflow surfaces.
 - **Travel Ink** (#132C3D): primary copy and data.
 - **Route Gray** (#5F707C): supporting text.
@@ -85,9 +85,9 @@ Deep navy provides continuity and trust; teal identifies VoyageBus actions; oran
 ## 3. Typography
 
 **Display Font:** Georgia (with Times New Roman fallback)
-**Body Font:** Inter (with system sans-serif fallback)
+**Body Font:** Avenir Next (with Segoe UI and system sans-serif fallbacks)
 
-**Character:** Serif creates an editorial sense of journey for hero, booking confirmation, and major trip identity. Inter carries every control, label, result, and piece of operational information.
+**Character:** Serif creates an editorial sense of journey for hero, booking confirmation, and major trip identity. Avenir Next and its system fallbacks carry every control, label, result, and piece of operational information.
 
 ### Hierarchy
 - **Display** (600, up to 3.5rem, 1.05): homepage hero and confirmation moment only.

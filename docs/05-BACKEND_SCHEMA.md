@@ -1,4 +1,4 @@
-# SmartBus Lite — Backend Schema and API Rules
+# VoyageBus — Backend Schema and API Rules
 
 ## Core tables
 

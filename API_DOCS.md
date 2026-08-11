@@ -34,7 +34,7 @@ GET /api/routes/search?source=Hyderabad&destination=Vijayawada
 ```http
 POST /api/bookings
 x-csrf-token: <issued token>
-Cookie: smartbus_session=<httpOnly cookie>
+Cookie: voyagebus_session=<httpOnly cookie>
 
 {"tripId":"trip-1-0-0","passengers":[{"seatNumber":"1A","name":"Asha Rao","age":29}]}
 ```

@@ -1,4 +1,4 @@
-# SmartBus Lite — Product Requirements Document
+# VoyageBus — Product Requirements Document
 
 ## Target users
 
@@ -10,7 +10,7 @@ Bus booking sites can feel crowded and make trip discovery difficult. Users need
 
 ## Value proposition
 
-SmartBus Lite offers a warm, straightforward bus-booking experience with AI-assisted search, visible seat availability, multi-seat mock bookings, and ticket-level cancellation.
+VoyageBus offers a calm, straightforward bus-booking experience with AI-assisted search, visible seat availability, multi-seat mock bookings, and ticket-level cancellation.
 
 ## Must-have features
 

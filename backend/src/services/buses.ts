@@ -17,5 +17,9 @@ export async function getTripById(tripId: string) {
   const trip = await prisma.trip.findUnique({ where: { id: tripId }, include: tripInclude })
   if (!trip) throw new ApiError(404, 'TRIP_NOT_FOUND', 'This bus trip is no longer available.')
   const value = tripDto(trip)
-  return { ...tripCardDto(trip), seats: value.seats, policy: { cutoffMinutes: value.cancellationCutoffMinutes, feePercent: value.cancellationFeePercent } }
+  return {
+    ...tripCardDto(trip),
+    seats: value.seats,
+    policy: { cutoffMinutes: value.cancellationCutoffMinutes, feePercent: value.cancellationFeePercent },
+  }
 }

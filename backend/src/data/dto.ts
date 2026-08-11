@@ -17,7 +17,14 @@ export function routeDto(route: TripRecord['route']) {
 }
 
 export function seatDto(seat: TripRecord['seats'][number]) {
-  return { id: seat.id, number: seat.seatNumber, deck: seat.deck, row: seat.row, column: seat.column, status: seat.status }
+  return {
+    id: seat.id,
+    number: seat.seatNumber,
+    deck: seat.deck,
+    row: seat.row,
+    column: seat.column,
+    status: seat.status,
+  }
 }
 
 export function tripDto(trip: TripRecord) {
