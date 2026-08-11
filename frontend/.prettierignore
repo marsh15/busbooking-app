@@ -1,0 +1,7 @@
+dist
+node_modules
+output
+test-results
+.playwright-cli
+package-lock.json
+public/icons.svg

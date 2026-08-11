@@ -18,7 +18,7 @@ Calm, dependable, refined. Confident, efficient, and premium without becoming ex
 
 ## Anti-references
 
-Do not resemble a generic AI-generated landing page. Avoid fabricated statistics and testimonials, repetitive card grids, excessive badges, oversized marketing copy, ornamental gradients, glassmorphism, gratuitous page-load animation, and decorative elements that do not help a traveller make a decision. Preserve the composed, editorial character of the supplied SmartBus screenshots rather than replacing it with a different template.
+Do not resemble a generic AI-generated landing page. Avoid fabricated statistics and testimonials, repetitive card grids, excessive badges, oversized marketing copy, ornamental gradients, glassmorphism, gratuitous page-load animation, and decorative elements that do not help a traveller make a decision. Preserve the composed, editorial character of the earlier prototype while giving VoyageBus its own consistent identity.
 
 ## Design Principles
 

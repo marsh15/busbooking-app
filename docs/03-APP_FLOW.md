@@ -1,4 +1,4 @@
-# SmartBus Lite — App Flow
+# VoyageBus — App Flow
 
 ## Routes
 

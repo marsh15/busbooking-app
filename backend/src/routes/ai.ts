@@ -4,4 +4,10 @@ import { parseSearch } from '../services/ai-parser.js'
 import { asyncRoute } from '../utils/http.js'
 
 export const aiRouter = Router()
-aiRouter.post('/parse-search', asyncRoute(async (request, response) => { const { query } = aiSearchSchema.parse(request.body); response.json({ data: await parseSearch(query) }) }))
+aiRouter.post(
+  '/parse-search',
+  asyncRoute(async (request, response) => {
+    const { query } = aiSearchSchema.parse(request.body)
+    response.json({ data: await parseSearch(query) })
+  }),
+)

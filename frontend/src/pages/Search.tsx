@@ -2,16 +2,212 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router-dom'
 import { client } from '../lib/api'
 import type { TripCard } from '../types'
-import { Armchair, ArrowRight, BusFront, Clock3, Snowflake, Star, Wifi } from 'lucide-react'
+import { Armchair, ArrowRight, BusFront, Clock3, Snowflake, Wifi } from 'lucide-react'
 
 const duration = (minutes: number) => `${Math.floor(minutes / 60)}h ${minutes % 60}m`
 export function SearchPage() {
-  const [params, setParams] = useSearchParams(); const source = params.get('source') || ''; const destination = params.get('destination') || ''; const date = params.get('date') || ''
-  const route = useQuery({ queryKey: ['route', source, destination], queryFn: () => client.route(source, destination), enabled: Boolean(source && destination), retry: false })
+  const [params, setParams] = useSearchParams()
+  const source = params.get('source') || ''
+  const destination = params.get('destination') || ''
+  const date = params.get('date') || ''
+  const route = useQuery({
+    queryKey: ['route', source, destination],
+    queryFn: () => client.route(source, destination),
+    enabled: Boolean(source && destination),
+    retry: false,
+  })
   const page = Math.max(1, Number(params.get('page')) || 1)
-  const trips = useQuery({ queryKey: ['trips', route.data?.id, date, params.toString()], queryFn: () => client.tripsPage({ routeId: route.data?.id, travelDate: date, maxPrice: params.get('maxPrice') || undefined, isAc: params.get('isAc') || undefined, busType: params.get('busType') || undefined, departure: params.get('departure') || undefined, sort: params.get('sort') || undefined, page, pageSize: 6 }), enabled: Boolean(route.data?.id) })
-  const update = (key: string, value: string) => { const next = new URLSearchParams(params); if (value) next.set(key, value); else next.delete(key); if (key !== 'page') next.delete('page'); setParams(next) }
+  const trips = useQuery({
+    queryKey: ['trips', route.data?.id, date, params.toString()],
+    queryFn: () =>
+      client.tripsPage({
+        routeId: route.data?.id,
+        travelDate: date,
+        maxPrice: params.get('maxPrice') || undefined,
+        isAc: params.get('isAc') || undefined,
+        busType: params.get('busType') || undefined,
+        departure: params.get('departure') || undefined,
+        sort: params.get('sort') || undefined,
+        page,
+        pageSize: 6,
+      }),
+    enabled: Boolean(route.data?.id),
+  })
+  const update = (key: string, value: string) => {
+    const next = new URLSearchParams(params)
+    if (value) next.set(key, value)
+    else next.delete(key)
+    if (key !== 'page') next.delete('page')
+    setParams(next)
+  }
   const setPage = (nextPage: number) => update('page', String(nextPage))
-  return <main className="page-shell"><div className="crumb"><Link to="/">Home</Link> <span>›</span> Search</div><div className="search-title"><div><p className="eyebrow">YOUR JOURNEY</p><h1>{source} <span>→</span> {destination}</h1><p>{date || 'Choose a date'} · {trips.data?.pagination.total ?? '—'} buses found</p></div><Link className="outline-button" to="/">Modify search</Link></div><div className="results-layout"><aside className="filters"><h2>Refine results</h2><label>Sort by<select value={params.get('sort') || ''} onChange={(event) => update('sort', event.target.value)}><option value="">Recommended</option><option value="price">Lowest fare</option><option value="departure">Earliest departure</option></select></label><label>Bus type<select value={params.get('busType') || ''} onChange={(event) => update('busType', event.target.value)}><option value="">All buses</option><option value="SLEEPER">Sleeper</option><option value="SEATER">Seater</option></select></label><label>Comfort<select value={params.get('isAc') || ''} onChange={(event) => update('isAc', event.target.value)}><option value="">AC & non-AC</option><option value="true">AC</option><option value="false">Non-AC</option></select></label><label>Departure<select value={params.get('departure') || ''} onChange={(event) => update('departure', event.target.value)}><option value="">Any time</option><option value="morning">Morning</option><option value="afternoon">Afternoon</option><option value="evening">Evening</option><option value="night">Night</option></select></label><label>Max fare<select value={params.get('maxPrice') || ''} onChange={(event) => update('maxPrice', event.target.value)}><option value="">Any price</option><option value="800">Up to ₹800</option><option value="1200">Up to ₹1,200</option><option value="1600">Up to ₹1,600</option></select></label><button className="link-button" onClick={() => setParams({ source, destination, date })}>Clear filters</button></aside><section aria-live="polite" className="trip-results">{(route.isLoading || trips.isLoading) && <><div className="skeleton card-skeleton" /><div className="skeleton card-skeleton" /><div className="skeleton card-skeleton" /></>}{(route.isError || trips.isError) && <div className="empty-state"><h2>That route is taking a breather.</h2><p>Try one of the popular corridors or adjust your search.</p><Link className="primary inline" to="/">Back to search</Link></div>}{trips.data?.data.length === 0 && <div className="empty-state"><h2>No buses found for these filters.</h2><p>Try a different time, price, or travel date.</p><button className="primary" onClick={() => setParams({ source, destination, date })}>Clear filters</button></div>}{trips.data?.data.map((trip) => <TripCardView key={trip.id} trip={trip} />)}{trips.data && trips.data.pagination.total > trips.data.pagination.pageSize && <nav className="pagination" aria-label="Search result pages"><button className="outline-button" disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</button><span>Page {page} of {Math.ceil(trips.data.pagination.total / trips.data.pagination.pageSize)}</span><button className="outline-button" disabled={page * trips.data.pagination.pageSize >= trips.data.pagination.total} onClick={() => setPage(page + 1)}>Next</button></nav>}</section></div></main>
+  return (
+    <main id="main-content" className="page-shell">
+      <div className="crumb">
+        <Link to="/">Home</Link> <span>›</span> Search
+      </div>
+      <div className="search-title">
+        <div>
+          <p className="eyebrow">Your journey</p>
+          <h1>
+            {source} <span>→</span> {destination}
+          </h1>
+          <p>
+            {date || 'Choose a date'} · {trips.data?.pagination.total ?? '—'} buses found
+          </p>
+        </div>
+        <Link className="outline-button" to="/">
+          Modify search
+        </Link>
+      </div>
+      <div className="results-layout">
+        <aside className="filters">
+          <h2>Refine results</h2>
+          <label>
+            Sort by
+            <select value={params.get('sort') || ''} onChange={(event) => update('sort', event.target.value)}>
+              <option value="">Recommended</option>
+              <option value="price">Lowest fare</option>
+              <option value="departure">Earliest departure</option>
+            </select>
+          </label>
+          <label>
+            Bus type
+            <select
+              value={params.get('busType') || ''}
+              onChange={(event) => update('busType', event.target.value)}
+            >
+              <option value="">All buses</option>
+              <option value="SLEEPER">Sleeper</option>
+              <option value="SEATER">Seater</option>
+            </select>
+          </label>
+          <label>
+            Comfort
+            <select value={params.get('isAc') || ''} onChange={(event) => update('isAc', event.target.value)}>
+              <option value="">AC & non-AC</option>
+              <option value="true">AC</option>
+              <option value="false">Non-AC</option>
+            </select>
+          </label>
+          <label>
+            Departure
+            <select
+              value={params.get('departure') || ''}
+              onChange={(event) => update('departure', event.target.value)}
+            >
+              <option value="">Any time</option>
+              <option value="morning">Morning</option>
+              <option value="afternoon">Afternoon</option>
+              <option value="evening">Evening</option>
+              <option value="night">Night</option>
+            </select>
+          </label>
+          <label>
+            Max fare
+            <select
+              value={params.get('maxPrice') || ''}
+              onChange={(event) => update('maxPrice', event.target.value)}
+            >
+              <option value="">Any price</option>
+              <option value="800">Up to ₹800</option>
+              <option value="1200">Up to ₹1,200</option>
+              <option value="1600">Up to ₹1,600</option>
+            </select>
+          </label>
+          <button className="link-button" onClick={() => setParams({ source, destination, date })}>
+            Clear filters
+          </button>
+        </aside>
+        <section aria-live="polite" className="trip-results">
+          {(route.isLoading || trips.isLoading) && (
+            <>
+              <div className="skeleton card-skeleton" />
+              <div className="skeleton card-skeleton" />
+              <div className="skeleton card-skeleton" />
+            </>
+          )}
+          {(route.isError || trips.isError) && (
+            <div className="empty-state">
+              <h2>We couldn't load this route.</h2>
+              <p>Try one of the popular corridors or adjust your search.</p>
+              <Link className="primary inline" to="/">
+                Back to search
+              </Link>
+            </div>
+          )}
+          {trips.data?.data.length === 0 && (
+            <div className="empty-state">
+              <h2>No buses found for these filters.</h2>
+              <p>Try a different time, price, or travel date.</p>
+              <button className="primary" onClick={() => setParams({ source, destination, date })}>
+                Clear filters
+              </button>
+            </div>
+          )}
+          {trips.data?.data.map((trip) => (
+            <TripCardView key={trip.id} trip={trip} />
+          ))}
+          {trips.data && trips.data.pagination.total > trips.data.pagination.pageSize && (
+            <nav className="pagination" aria-label="Search result pages">
+              <button className="outline-button" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+                Previous
+              </button>
+              <span>
+                Page {page} of {Math.ceil(trips.data.pagination.total / trips.data.pagination.pageSize)}
+              </span>
+              <button
+                className="outline-button"
+                disabled={page * trips.data.pagination.pageSize >= trips.data.pagination.total}
+                onClick={() => setPage(page + 1)}
+              >
+                Next
+              </button>
+            </nav>
+          )}
+        </section>
+      </div>
+    </main>
+  )
 }
-function TripCardView({ trip }: { trip: TripCard }) { return <article className="trip-card"><div className="operator"><span className="operator-icon"><BusFront /></span><div><h2>{trip.busName}</h2><p>{trip.operator} · {trip.busType.toLowerCase()} · {trip.isAc ? 'AC' : 'Non-AC'}</p></div></div><div className="timing"><b>{trip.departureTime}</b><span><Clock3 /> {duration(trip.durationMinutes)}</span><b>{trip.arrivalTime}</b></div><div className="trip-meta"><span><Armchair /> {trip.availableSeats} seats left</span><span className="amenity-row">{trip.isAc && <Snowflake aria-label="Air conditioned" />}{trip.amenities.includes('WiFi') && <Wifi aria-label="Wi-Fi" />}<Star aria-label="Highly rated" /> {trip.amenities.slice(0, 2).join(' · ')}</span></div><div className="price"><strong>₹{trip.fare.toLocaleString('en-IN')}</strong><span>per seat</span></div><Link className="primary" to={`/bus/${trip.busId}?tripId=${trip.id}`}>View seats <ArrowRight /></Link></article> }
+function TripCardView({ trip }: { trip: TripCard }) {
+  return (
+    <article className="trip-card">
+      <div className="operator">
+        <span className="operator-icon">
+          <BusFront />
+        </span>
+        <div>
+          <h2>{trip.busName}</h2>
+          <p>
+            {trip.operator} · {trip.busType.toLowerCase()} · {trip.isAc ? 'AC' : 'Non-AC'}
+          </p>
+        </div>
+      </div>
+      <div className="timing">
+        <b>{trip.departureTime}</b>
+        <span>
+          <Clock3 /> {duration(trip.durationMinutes)}
+        </span>
+        <b>{trip.arrivalTime}</b>
+      </div>
+      <div className="trip-meta">
+        <span>
+          <Armchair /> {trip.availableSeats} seats left
+        </span>
+        <span className="amenity-row">
+          {trip.isAc && <Snowflake aria-label="Air conditioned" />}
+          {trip.amenities.includes('WiFi') && <Wifi aria-label="Wi-Fi" />}
+          {trip.amenities.slice(0, 2).join(' · ')}
+        </span>
+      </div>
+      <div className="price">
+        <strong>₹{trip.fare.toLocaleString('en-IN')}</strong>
+        <span>per seat</span>
+      </div>
+      <Link className="primary" to={`/bus/${trip.busId}?tripId=${trip.id}`}>
+        View seats <ArrowRight />
+      </Link>
+    </article>
+  )
+}

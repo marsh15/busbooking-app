@@ -10,7 +10,13 @@ const schema = z.object({
 
 export function validateEnvironment() {
   const result = schema.safeParse(process.env)
-  if (!result.success) throw new Error(`Invalid environment configuration: ${result.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join('; ')}`)
-  if (result.data.NODE_ENV === 'production' && result.data.JWT_SECRET.length < 32) throw new Error('Invalid environment configuration: JWT_SECRET must be at least 32 characters in production')
+  if (!result.success)
+    throw new Error(
+      `Invalid environment configuration: ${result.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join('; ')}`,
+    )
+  if (result.data.NODE_ENV === 'production' && result.data.JWT_SECRET.length < 32)
+    throw new Error(
+      'Invalid environment configuration: JWT_SECRET must be at least 32 characters in production',
+    )
   return result.data
 }

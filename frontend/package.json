@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "format": "prettier --config .prettierrc.json --ignore-path .prettierignore --write . \"../backend/{src,prisma}/**/*.ts\"",
+    "format:check": "prettier --config .prettierrc.json --ignore-path .prettierignore --check . \"../backend/{src,prisma}/**/*.ts\"",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
@@ -43,6 +45,7 @@
     "eslint-plugin-react-refresh": "^0.5.3",
     "globals": "^17.7.0",
     "jsdom": "^29.1.1",
+    "prettier": "^3.9.6",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.62.0",
     "vite": "^8.1.1",

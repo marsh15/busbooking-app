@@ -1,4 +1,4 @@
-# SmartBus Lite — UI/UX Brief
+# VoyageBus — UI/UX Brief
 
 ## Visual direction
 
@@ -7,8 +7,9 @@ Use a warm, modern travel style. It should feel calm and helpful, not like a cro
 ## Color palette
 
 - Warm navy: primary background, headings, and navigation
-- Orange: primary actions, selected states, and highlights
-- Cream/off-white: page backgrounds and large surfaces
+- Teal: primary actions, selected states, and focus treatment
+- Orange: warnings, urgency, and exceptional highlights only
+- Cool off-white: page backgrounds and large surfaces
 - White: cards and inputs
 - Teal/green: successful availability and confirmations
 - Red: destructive cancellation actions and errors

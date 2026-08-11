@@ -1,4 +1,4 @@
-# SmartBus Lite operations
+# VoyageBus operations
 
 ## Deployment
 

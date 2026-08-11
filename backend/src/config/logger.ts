@@ -12,6 +12,14 @@ export function requestLogger(request: Request, response: Response, next: NextFu
   const requestId = request.get('x-request-id') || randomUUID()
   response.setHeader('x-request-id', requestId)
   const started = performance.now()
-  response.on('finish', () => logger.info('http_request', { requestId, method: request.method, path: request.path, status: response.statusCode, durationMs: Math.round(performance.now() - started) }))
+  response.on('finish', () =>
+    logger.info('http_request', {
+      requestId,
+      method: request.method,
+      path: request.path,
+      status: response.statusCode,
+      durationMs: Math.round(performance.now() - started),
+    }),
+  )
   next()
 }

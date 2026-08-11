@@ -1,4 +1,4 @@
-# SmartBus Lite — Technical Requirements Document
+# VoyageBus — Technical Requirements Document
 
 ## Fixed stack
 

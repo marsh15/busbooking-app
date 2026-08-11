@@ -11,7 +11,11 @@ export function addDays(date: string, days: number): string {
   return value.toISOString().slice(0, 10)
 }
 
-export function isCancellationOpen(trip: { travelDate: string; departureTime: string; cancellationCutoffMinutes: number }) {
+export function isCancellationOpen(trip: {
+  travelDate: string
+  departureTime: string
+  cancellationCutoffMinutes: number
+}) {
   const departure = new Date(`${trip.travelDate}T${trip.departureTime}:00+05:30`).getTime()
   return Date.now() < departure - trip.cancellationCutoffMinutes * 60_000
 }

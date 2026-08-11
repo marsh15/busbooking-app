@@ -1,6 +1,6 @@
 # Architecture
 
-SmartBus Lite is a same-origin browser experience: the Vercel frontend rewrites `/api/*` to the Render API in production. The API issues a signed JWT only as a Secure, HttpOnly, `SameSite=Lax` cookie; the browser obtains a non-secret CSRF token and returns it for mutations.
+VoyageBus is a same-origin browser experience: the Vercel frontend rewrites `/api/*` to the deployed API in production. The API issues a signed JWT only as a Secure, HttpOnly, `SameSite=Lax` cookie; the browser obtains a non-secret CSRF token and returns it for mutations.
 
 ```mermaid
 flowchart LR
