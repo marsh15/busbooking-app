@@ -15,8 +15,9 @@ async function start() {
     await applyMigrations()
     logger.info('migrations_applied')
   }
+  const seedStarted = Date.now()
   await seedDemoData()
-  logger.info('demo_data_ready')
+  logger.info('demo_data_ready', { durationMs: Date.now() - seedStarted })
   await cleanupExpiredDemoData()
   const server = app.listen(environment.PORT, '0.0.0.0', () =>
     logger.info('server_started', { port: environment.PORT }),

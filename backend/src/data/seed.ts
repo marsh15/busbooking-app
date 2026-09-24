@@ -1,4 +1,5 @@
 import argon2 from 'argon2'
+import { Prisma } from '@prisma/client'
 import { createHash } from 'node:crypto'
 import { prisma } from './prisma.js'
 import { addDays, istDate } from '../utils/ist.js'
@@ -105,70 +106,73 @@ export async function seedDemoData(seedDate = process.env.SEED_DATE || istDate()
     ])
   }
 
-  for (const name of cities)
-    await prisma.city.upsert({ where: { name }, update: {}, create: { id: stableId('city', name), name } })
-  for (const [index, [source, destination]] of pairs.entries()) {
-    const sourceId = stableId('city', source)
-    const destinationId = stableId('city', destination)
-    await prisma.route.upsert({
-      where: { sourceId_destinationId: { sourceId, destinationId } },
-      update: {},
-      create: { id: stableId('route', `${source}:${destination}`), sourceId, destinationId },
-    })
-  }
-  for (const operator of operators) {
-    const operatorId = stableId('operator', operator.name)
-    await prisma.operator.upsert({
-      where: { id: operatorId },
-      update: {},
-      create: { id: operatorId, name: operator.name },
-    })
-    await prisma.cancellationPolicy.upsert({
-      where: { operatorId_version: { operatorId, version: 1 } },
-      update: {},
-      create: {
-        id: stableId('policy', operator.policyKey),
-        operatorId,
-        version: 1,
-        isActive: true,
-        rules: operator.rules,
+  // Everything below is bulk-inserted with skipDuplicates: seeded rows are
+  // deterministic, existing rows are never modified, and ten-ish round trips
+  // finish in a couple of seconds even with a cross-region database. Order
+  // matters: each batch only references tables inserted in earlier batches.
+  await prisma.city.createMany({
+    data: cities.map((name) => ({ id: stableId('city', name), name })),
+    skipDuplicates: true,
+  })
+  await prisma.route.createMany({
+    data: pairs.map(([source, destination]) => ({
+      id: stableId('route', `${source}:${destination}`),
+      sourceId: stableId('city', source),
+      destinationId: stableId('city', destination),
+    })),
+    skipDuplicates: true,
+  })
+  await prisma.operator.createMany({
+    data: operators.map((operator) => ({
+      id: stableId('operator', operator.name),
+      name: operator.name,
+    })),
+    skipDuplicates: true,
+  })
+  await prisma.cancellationPolicy.createMany({
+    data: operators.map((operator) => ({
+      id: stableId('policy', operator.policyKey),
+      operatorId: stableId('operator', operator.name),
+      version: 1,
+      isActive: true,
+      rules: operator.rules,
+    })),
+    skipDuplicates: true,
+  })
+  await prisma.bus.createMany({
+    data: buses.map((bus) => ({
+      id: stableId('bus', bus.id),
+      name: bus.name,
+      operatorId: stableId('operator', bus.operatorName),
+      type: bus.type,
+      isAc: bus.isAc,
+      amenities: bus.amenities,
+    })),
+    skipDuplicates: true,
+  })
+  await prisma.user.createMany({
+    data: [
+      {
+        id: stableId('user', 'demo@voyagebus.in'),
+        name: 'Demo Traveller',
+        email: 'demo@voyagebus.in',
+        passwordHash: await argon2.hash('VoyageBus123!', { type: argon2.argon2id }),
       },
-    })
-  }
-  for (const bus of buses) {
-    const id = stableId('bus', bus.id)
-    await prisma.bus.upsert({
-      where: { id },
-      update: {},
-      create: {
-        id,
-        name: bus.name,
-        operatorId: stableId('operator', bus.operatorName),
-        type: bus.type,
-        isAc: bus.isAc,
-        amenities: bus.amenities,
-      },
-    })
-  }
-  await prisma.user.upsert({
-    where: { email: 'demo@voyagebus.in' },
-    update: {},
-    create: {
-      id: stableId('user', 'demo@voyagebus.in'),
-      name: 'Demo Traveller',
-      email: 'demo@voyagebus.in',
-      passwordHash: await argon2.hash('VoyageBus123!', { type: argon2.argon2id }),
-    },
+    ],
+    skipDuplicates: true,
   })
 
+  const trips: Array<Prisma.TripCreateManyInput & { id: string }> = []
+  const tripKeys: string[] = []
   for (const [routeIndex] of pairs.entries()) {
     for (let day = 0; day < 7; day += 1) {
       for (const slot of [0, 1]) {
         const travelDate = addDays(seedDate, day)
         const bus = buses[(routeIndex + day * 2 + slot) % buses.length]!
         const tripKey = `${pairs[routeIndex]![0]}:${pairs[routeIndex]![1]}:${travelDate}:${slot}`
-        const tripId = stableId('trip', tripKey)
-        const data = {
+        tripKeys.push(tripKey)
+        trips.push({
+          id: stableId('trip', tripKey),
           routeId: stableId('route', `${pairs[routeIndex]![0]}:${pairs[routeIndex]![1]}`),
           busId: stableId('bus', bus.id),
           policyId: stableId(
@@ -183,29 +187,40 @@ export async function seedDemoData(seedDate = process.env.SEED_DATE || istDate()
           durationMinutes: 300 + (routeIndex % 3) * 55,
           isDemo: true,
           fare: 480 + routeIndex * 120 + (bus.type === 'SLEEPER' ? 360 : 0) + (bus.isAc ? 180 : 0),
-        }
-        await prisma.trip.upsert({ where: { id: tripId }, update: {}, create: { id: tripId, ...data } })
-        const seats = []
-        for (let row = 1; row <= 6; row += 1) {
-          for (const [column, suffix] of [
-            [1, 'A'],
-            [2, 'B'],
-            [4, 'C'],
-            [5, 'D'],
-          ] as const) {
-            const seatNumber = `${row}${suffix}`
-            seats.push({
-              id: stableId('seat', `${tripKey}:${seatNumber}`),
-              tripId,
-              seatNumber,
-              deck: 1,
-              row,
-              column,
-            })
-          }
-        }
-        await prisma.seat.createMany({ data: seats, skipDuplicates: true })
+        })
       }
     }
   }
+  await prisma.trip.createMany({ data: trips, skipDuplicates: true })
+
+  const seats: Array<{
+    id: string
+    tripId: string
+    seatNumber: string
+    deck: number
+    row: number
+    column: number
+  }> = []
+  trips.forEach((trip, index) => {
+    const tripKey = tripKeys[index]!
+    for (let row = 1; row <= 6; row += 1) {
+      for (const [column, suffix] of [
+        [1, 'A'],
+        [2, 'B'],
+        [4, 'C'],
+        [5, 'D'],
+      ] as const) {
+        const seatNumber = `${row}${suffix}`
+        seats.push({
+          id: stableId('seat', `${tripKey}:${seatNumber}`),
+          tripId: trip.id,
+          seatNumber,
+          deck: 1,
+          row,
+          column,
+        })
+      }
+    }
+  })
+  await prisma.seat.createMany({ data: seats, skipDuplicates: true })
 }
