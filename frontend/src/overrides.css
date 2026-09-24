@@ -682,3 +682,63 @@ footer strong {
     gap: 8px;
   }
 }
+
+/* --- Ready gate: cold-start "starting the demo" screen --- */
+
+.ready-gate {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--page);
+}
+
+.ready-gate-card {
+  max-width: 420px;
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: var(--shadow-float);
+  padding: 40px 28px;
+}
+
+.ready-gate-card h1 {
+  font-size: 1.25rem;
+  color: var(--ink);
+  margin: 18px 0 10px;
+}
+
+.ready-gate-card p {
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.55;
+  margin: 0 0 8px;
+}
+
+.ready-gate-hint {
+  color: var(--danger);
+}
+
+.ready-gate-spinner {
+  width: 38px;
+  height: 38px;
+  margin: 0 auto;
+  border-radius: 50%;
+  border: 3px solid var(--line);
+  border-top-color: var(--voyage-teal);
+  animation: ready-gate-spin 1s linear infinite;
+}
+
+@keyframes ready-gate-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ready-gate-spinner {
+    animation: none;
+    border-top-color: var(--voyage-teal-deep);
+  }
+}

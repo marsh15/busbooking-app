@@ -6,6 +6,14 @@ const schema = z.object({
   JWT_SECRET: z.string().min(1),
   FRONTEND_ORIGIN: z.string().min(1).default('http://localhost:5173,http://127.0.0.1:5173'),
   PORT: z.coerce.number().int().positive().default(4000),
+  RUN_MIGRATIONS_ON_START: z
+    .string()
+    .default('true')
+    .transform((value) => value !== 'false'),
+  PUBLIC_REGISTRATION: z
+    .string()
+    .default('true')
+    .transform((value) => value !== 'false'),
 })
 
 export function validateEnvironment() {

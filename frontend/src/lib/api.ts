@@ -16,6 +16,7 @@ const paginated = <T>(request: Promise<{ data: Paginated<T> }>) => request.then(
 
 export const client = {
   csrf,
+  ready: () => api.get('/ready', { timeout: 65_000 }).then((response) => response.data.data),
   me: () => data<{ user: User }>(api.get('/auth/me')),
   login: async (values: { email: string; password: string }) => {
     await csrf()

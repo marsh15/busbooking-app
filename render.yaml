@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: smartbus-lite-api
+    name: voyagebus-api
     runtime: node
     rootDir: backend
     buildCommand: npm ci && npm run db:generate && npm run typecheck
@@ -22,3 +22,7 @@ services:
         value: gpt-5.4-nano
       - key: LOG_LEVEL
         value: info
+      - key: RUN_MIGRATIONS_ON_START
+        value: "true"
+      - key: PUBLIC_REGISTRATION
+        value: "false"

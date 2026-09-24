@@ -6,6 +6,7 @@ import './index.css'
 import './overrides.css'
 import App from './App.tsx'
 import { Toaster } from 'sonner'
+import { ReadyGate } from './components/ReadyGate.tsx'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
@@ -13,10 +14,12 @@ const queryClient = new QueryClient({
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <App />
-        <Toaster richColors position="top-center" />
-      </BrowserRouter>
+      <ReadyGate>
+        <BrowserRouter>
+          <App />
+          <Toaster richColors position="top-center" />
+        </BrowserRouter>
+      </ReadyGate>
     </QueryClientProvider>
   </StrictMode>,
 )
