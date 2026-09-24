@@ -1,5 +1,7 @@
-import request, { type TestAgent } from 'supertest'
-import type { Test } from 'supertest'
+import request from 'supertest'
+
+// supertest v7 no longer exports TestAgent; derive it from the factory.
+type Agent = ReturnType<typeof request.agent>
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { app } from './app.js'
 import { prisma } from './data/prisma.js'
@@ -48,7 +50,7 @@ describe.sequential('VoyageBus API with MySQL persistence', () => {
     })
   }
 
-  async function createHold(agent: TestAgent<Test>, csrf: string, tripId: string, seatNumbers: string[]) {
+  async function createHold(agent: Agent, csrf: string, tripId: string, seatNumbers: string[]) {
     const response = await agent
       .post('/api/holds')
       .set('x-csrf-token', csrf)
@@ -58,7 +60,7 @@ describe.sequential('VoyageBus API with MySQL persistence', () => {
   }
 
   function confirm(
-    agent: TestAgent<Test>,
+    agent: Agent,
     csrf: string,
     holdId: string,
     passengers: Array<{ name: string; age: number }>,
