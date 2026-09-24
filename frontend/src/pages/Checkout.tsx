@@ -1,17 +1,18 @@
-import { useEffect } from 'react'
-import { useFieldArray, useForm, type Resolver } from 'react-hook-form'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useForm, useFieldArray, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useMutation, useQuery } from '@tanstack/react-query'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { client } from '../lib/api'
+import { getApiCode, getApiMessage } from '../lib/errors'
 import { useAppStore } from '../store'
+import type { CheckoutResult } from '../types'
 
-const schema = z.object({
+const valuesSchema = z.object({
   passengers: z.array(
     z.object({
-      seatNumber: z.string(),
-      name: z.string().trim().min(2, 'Enter the traveller’s name.'),
+      name: z.string().trim().min(2, 'Enter the traveller’s full name.'),
       age: z.coerce
         .number()
         .int('Enter a whole number.')
@@ -20,169 +21,366 @@ const schema = z.object({
     }),
   ),
 })
+type CheckoutValues = z.infer<typeof valuesSchema>
 
-type CheckoutValues = {
-  passengers: Array<{ seatNumber: string; name: string; age: number }>
+const keyFor = (holdId: string) => {
+  const storageKey = `voyage-checkout-key-${holdId}`
+  let key = sessionStorage.getItem(storageKey)
+  if (!key) {
+    key = `ui-${crypto.randomUUID()}`
+    sessionStorage.setItem(storageKey, key)
+  }
+  return key
+}
+const rotateKey = (holdId: string) => {
+  sessionStorage.removeItem(`voyage-checkout-key-${holdId}`)
 }
 
-const emptySeatSelection: string[] = []
+function useCountdown(expiresAt: string | undefined) {
+  const [remainingMs, setRemainingMs] = useState<number | null>(null)
+  useEffect(() => {
+    if (!expiresAt) return
+    const deadline = new Date(expiresAt).getTime()
+    const tick = () => setRemainingMs(Math.max(deadline - Date.now(), 0))
+    tick()
+    const timer = setInterval(tick, 1000)
+    return () => clearInterval(timer)
+  }, [expiresAt])
+  return remainingMs
+}
 
-function getApiMessage(error: unknown) {
-  return (error as { response?: { data?: { error?: { message?: string } } } }).response?.data?.error?.message
+const formatClock = (ms: number) => {
+  const totalSeconds = Math.floor(ms / 1000)
+  const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0')
+  const seconds = String(totalSeconds % 60).padStart(2, '0')
+  return `${minutes}:${seconds}`
 }
 
 export function CheckoutPage() {
   const { tripId = '' } = useParams()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const holdId = searchParams.get('hold') ?? undefined
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const clearTripSelection = useAppStore((state) => state.clearTripSelection)
   const selectedTripId = useAppStore((state) => state.selectedTripId)
   const storedSeats = useAppStore((state) => state.selectedSeats)
-  const clearTripSelection = useAppStore((state) => state.clearTripSelection)
-  const selectedSeats = selectedTripId === tripId ? storedSeats : emptySeatSelection
+  const selectedSeats = selectedTripId === tripId ? storedSeats : []
+  const holdCreationStarted = useRef(false)
 
-  const trip = useQuery({
+  // The server acquires every selected seat in one transaction before the
+  // passenger fields appear; the URL then carries the hold id so a refresh
+  // restores the server-owned hold instead of the in-memory selection.
+  const createHold = useMutation({
+    mutationFn: () => client.hold(tripId, selectedSeats),
+    onSuccess: (hold) => {
+      setSearchParams({ hold: hold.id }, { replace: true })
+    },
+  })
+
+  useEffect(() => {
+    if (!holdId && selectedSeats.length > 0 && !holdCreationStarted.current) {
+      holdCreationStarted.current = true
+      // Microtask, not a timer: effect cleanups during React Query's mount
+      // notifications must never cancel the hold acquisition.
+      void Promise.resolve().then(() => createHold.mutate())
+    }
+  }, [holdId, selectedSeats.length, createHold])
+
+  const holdQuery = useQuery({
+    queryKey: ['hold', holdId],
+    queryFn: () => client.getHold(holdId!),
+    enabled: !!holdId,
+    refetchInterval: (query) => (query.state.data?.state === 'ACTIVE' ? 15_000 : false),
+  })
+  const hold = holdQuery.data
+  const remainingMs = useCountdown(hold?.state === 'ACTIVE' ? hold.expiresAt : undefined)
+  const expired = !!hold && (hold.state === 'EXPIRED' || (hold.state === 'ACTIVE' && remainingMs === 0))
+  const effectiveState = expired ? 'EXPIRED' : hold?.state
+
+  const tripQuery = useQuery({
     queryKey: ['checkout-trip', tripId],
     queryFn: () => client.tripById(tripId),
   })
+  const trip = tripQuery.data
+
+  const seats = useMemo(() => hold?.seatNumbers ?? [], [hold])
   const form = useForm<CheckoutValues>({
-    resolver: zodResolver(schema) as Resolver<CheckoutValues>,
-    defaultValues: {
-      passengers: selectedSeats.map((seatNumber) => ({ seatNumber, name: '', age: 25 })),
-    },
+    resolver: zodResolver(valuesSchema) as unknown as Resolver<CheckoutValues>,
+    defaultValues: { passengers: [] },
   })
-  const fields = useFieldArray({ control: form.control, name: 'passengers' })
-  const { reset } = form
-
+  const { fields, replace } = useFieldArray({ control: form.control, name: 'passengers' })
   useEffect(() => {
-    reset({
-      passengers: selectedSeats.map((seatNumber) => ({ seatNumber, name: '', age: 25 })),
-    })
-  }, [reset, selectedSeats])
+    if (seats.length > 0 && form.getValues('passengers').length !== seats.length) {
+      replace(seats.map(() => ({ name: '', age: 25 })))
+    }
+  }, [seats, form, replace])
 
-  const booking = useMutation({
-    mutationFn: (values: CheckoutValues) => client.book(tripId, values.passengers),
-    onSuccess: (group) => {
-      clearTripSelection()
-      navigate(`/booking-confirmation/${group.id}`)
+  const [attempt, setAttempt] = useState<CheckoutResult | null>(null)
+  const attemptQuery = useQuery({
+    queryKey: ['attempt', attempt?.attempt.id],
+    queryFn: () => client.getAttempt(attempt!.attempt.id),
+    enabled: attempt?.attempt.status === 'PENDING',
+    refetchInterval: 2_000,
+  })
+  // When the poll resolves the attempt, prefer its result over the stale copy.
+  const activeAttempt =
+    attemptQuery.data && attemptQuery.data.attempt.status !== 'PENDING' ? attemptQuery.data : attempt
+  const navigatedAfterPoll = useRef(false)
+  useEffect(() => {
+    if (
+      activeAttempt?.attempt.status === 'SUCCEEDED' &&
+      activeAttempt.booking &&
+      !navigatedAfterPoll.current
+    ) {
+      navigatedAfterPoll.current = true
+      const timer = setTimeout(() => {
+        clearTripSelection()
+        void queryClient.invalidateQueries({ queryKey: ['bookings'] })
+        navigate(`/booking-confirmation/${activeAttempt.booking!.id}`)
+      }, 0)
+      return () => clearTimeout(timer)
+    }
+  }, [activeAttempt, clearTripSelection, queryClient, navigate])
+
+  const confirmPayment = useMutation({
+    mutationFn: (values: CheckoutValues) => client.confirm(hold!.id, values.passengers, keyFor(hold!.id)),
+    onSuccess: (result) => {
+      setAttempt(result)
+      if (result.attempt.status === 'SUCCEEDED' && result.booking) {
+        clearTripSelection()
+        queryClient.invalidateQueries({ queryKey: ['bookings'] })
+        navigate(`/booking-confirmation/${result.booking.id}`)
+      }
+      if (result.attempt.status === 'FAILED') rotateKey(hold!.id)
     },
   })
 
-  if (!selectedSeats.length) {
+  const releaseHold = useMutation({
+    mutationFn: () => client.releaseHold(hold!.id),
+    onSuccess: () => {
+      clearTripSelection()
+      void queryClient.invalidateQueries({ queryKey: ['trip'] })
+      navigate(trip ? `/bus/${trip.busId}?tripId=${trip.id}` : '/')
+    },
+  })
+
+  if (!holdId && selectedSeats.length === 0)
     return (
-      <main id="main-content" className="page-shell">
+      <main id="main-content" className="page">
         <div className="empty-state">
-          <h1>Choose seats first.</h1>
-          <p>Your traveller details appear once you select a seat.</p>
-          <Link className="primary inline" to="/">
-            Find a bus
+          <h1>Choose seats first</h1>
+          <p>Pick the seats you want from the bus page before checkout.</p>
+          {trip && (
+            <Link className="primary" to={`/bus/${trip.busId}?tripId=${trip.id}`}>
+              Back to the seat map
+            </Link>
+          )}
+        </div>
+      </main>
+    )
+
+  if (createHold.isPending || (holdId && !hold && holdQuery.isLoading))
+    return (
+      <main id="main-content" className="page">
+        <div className="empty-state" role="status">
+          <h1>Reserving your seats…</h1>
+          <p>Hold on a moment while we hold these seats for you.</p>
+        </div>
+      </main>
+    )
+
+  if (createHold.isError)
+    return (
+      <main id="main-content" className="page">
+        <div className="empty-state">
+          <h1>Those seats just went</h1>
+          <p>
+            {getApiMessage(createHold.error) ||
+              'Another traveller is holding them. Please choose again.'}
+          </p>
+          {trip && (
+            <Link className="primary" to={`/bus/${trip.busId}?tripId=${trip.id}`}>
+              Back to the seat map
+            </Link>
+          )}
+        </div>
+      </main>
+    )
+
+  if (!hold) return null
+
+  if (effectiveState === 'EXPIRED' || effectiveState === 'RELEASED')
+    return (
+      <main id="main-content" className="page">
+        <div className="empty-state">
+          <h1>Your hold on these seats has ended</h1>
+          <p>
+            Seats are held for ten minutes while traveller details are entered. That window closed, so the
+            seats were released — nothing was charged.
+          </p>
+          {trip && (
+            <Link className="primary" to={`/bus/${trip.busId}?tripId=${trip.id}`}>
+              Choose seats again
+            </Link>
+          )}
+        </div>
+      </main>
+    )
+
+  if (effectiveState === 'CONSUMED')
+    return (
+      <main id="main-content" className="page">
+        <div className="empty-state">
+          <h1>This hold was already used</h1>
+          <p>These seats have been confirmed. Find the ticket in your bookings.</p>
+          <Link className="primary" to="/my-bookings">
+            View my bookings
           </Link>
         </div>
       </main>
     )
-  }
 
-  const totalFare = (trip.data?.fare ?? 0) * selectedSeats.length
+  const total = hold.farePerSeat * seats.length
+  const expiryImminent = remainingMs !== null && remainingMs <= 60_000 && remainingMs > 0
+  const heldSeats = seats.join(', ')
+  const pending = activeAttempt?.attempt.status === 'PENDING'
+  const failed = activeAttempt?.attempt.status === 'FAILED'
 
   return (
-    <main id="main-content" className="page-shell checkout">
-      <div className="crumb">
-        <Link to="/">Home</Link> <span>›</span> Checkout
-      </div>
-      <header>
-        <p className="eyebrow">Almost there</p>
-        <h1>Who’s travelling?</h1>
-        <p>Payment is simulated—no card or money is required.</p>
+    <main id="main-content" className="page checkout-page">
+      <header className="checkout-header">
+        <div>
+          <p className="eyebrow">{hold.trip.route}</p>
+          <h1>Traveller details</h1>
+          <p className="muted">
+            {hold.trip.busName} · {hold.trip.operator} · {hold.trip.travelDate} · departs{' '}
+            {hold.trip.departureTime} IST
+          </p>
+        </div>
+        <div
+          className={`hold-countdown ${expiryImminent ? 'urgent' : ''}`}
+          role="timer"
+          aria-label="Time remaining on your seat hold"
+        >
+          <small>Seats held for</small>
+          <strong aria-live="polite">{remainingMs !== null ? formatClock(remainingMs) : '—:—'}</strong>
+        </div>
       </header>
 
-      {trip.isLoading && (
-        <div className="skeleton card-skeleton" aria-label="Loading fare details" aria-busy="true" />
-      )}
-      {trip.isError && (
-        <div className="inline-alert" role="alert">
-          <strong>Fare details are unavailable.</strong>
-          <span>Return to the seat map and try again.</span>
-        </div>
-      )}
-      {trip.data && (
-        <div className="checkout-layout">
-          <form onSubmit={form.handleSubmit((values) => booking.mutate(values))} noValidate>
-            <section className="passenger-card">
-              <h2>Passenger details</h2>
-              {fields.fields.map((field, index) => {
-                const errors = form.formState.errors.passengers?.[index]
-                const nameErrorId = `passenger-${index}-name-error`
-                const ageErrorId = `passenger-${index}-age-error`
+      <div className="checkout-grid">
+        <form onSubmit={form.handleSubmit((values) => confirmPayment.mutate(values))} noValidate>
+          <h2>Who is travelling?</h2>
+          <p className="muted">
+            Seat{seats.length > 1 ? 's' : ''} <strong>{heldSeats}</strong> held for you — one traveller per
+            seat.
+          </p>
+          {fields.map((field, index) => (
+            <fieldset className="passenger-row" key={field.id}>
+              <legend>Traveller for seat {seats[index]}</legend>
+              <label className="field">
+                <span>Full name</span>
+                <input {...form.register(`passengers.${index}.name`)} autoComplete="name" />
+                {form.formState.errors.passengers?.[index]?.name && (
+                  <small className="form-error">
+                    {form.formState.errors.passengers[index]?.name?.message}
+                  </small>
+                )}
+              </label>
+              <label className="field">
+                <span>Age</span>
+                <input
+                  {...form.register(`passengers.${index}.age`)}
+                  type="number"
+                  min={1}
+                  max={120}
+                  inputMode="numeric"
+                />
+                {form.formState.errors.passengers?.[index]?.age && (
+                  <small className="form-error">
+                    {form.formState.errors.passengers[index]?.age?.message}
+                  </small>
+                )}
+              </label>
+            </fieldset>
+          ))}
 
-                return (
-                  <div className="passenger" key={field.id}>
-                    <span className="seat-pill">Seat {field.seatNumber}</span>
-                    <label>
-                      Full name
-                      <input
-                        {...form.register(`passengers.${index}.name`)}
-                        autoComplete="name"
-                        aria-invalid={Boolean(errors?.name)}
-                        aria-describedby={errors?.name ? nameErrorId : undefined}
-                      />
-                      {errors?.name?.message && (
-                        <small id={nameErrorId} className="form-error">
-                          {errors.name.message}
-                        </small>
-                      )}
-                    </label>
-                    <label>
-                      Age
-                      <input
-                        type="number"
-                        inputMode="numeric"
-                        min="1"
-                        max="120"
-                        {...form.register(`passengers.${index}.age`)}
-                        aria-invalid={Boolean(errors?.age)}
-                        aria-describedby={errors?.age ? ageErrorId : undefined}
-                      />
-                      {errors?.age?.message && (
-                        <small id={ageErrorId} className="form-error">
-                          {errors.age.message}
-                        </small>
-                      )}
-                    </label>
-                  </div>
-                )
-              })}
-            </section>
+          {failed && (
+            <div className="inline-alert" role="alert">
+              <strong>The simulated payment was declined.</strong>
+              <p>{activeAttempt?.attempt.message}</p>
+              <p className="muted">Your seats are still held — try the payment again.</p>
+            </div>
+          )}
+          {confirmPayment.isError && (
+            <div className="inline-alert" role="alert">
+              <strong>Confirmation did not go through.</strong>
+              <p>{getApiMessage(confirmPayment.error) || 'Please try again in a moment.'}</p>
+              {getApiCode(confirmPayment.error) === 'HOLD_EXPIRED' && trip && (
+                <p>
+                  Your hold expired. <Link to={`/bus/${trip.busId}?tripId=${trip.id}`}>Choose seats again</Link>
+                </p>
+              )}
+            </div>
+          )}
 
-            {booking.isError && (
-              <div className="inline-alert" role="alert">
-                <strong>{getApiMessage(booking.error) ?? 'Booking could not be completed.'}</strong>
-                <Link to={`/bus/${trip.data.busId}?tripId=${tripId}`}>Review live seat availability</Link>
-              </div>
-            )}
-            <button className="primary wide" disabled={booking.isPending}>
-              {booking.isPending ? 'Confirming seats…' : 'Confirm simulated payment →'}
+          <div className="checkout-actions">
+            <button
+              className="primary wide"
+              disabled={confirmPayment.isPending || pending || remainingMs === 0}
+            >
+              {pending
+                ? 'Processing payment…'
+                : confirmPayment.isPending
+                  ? 'Confirming…'
+                  : 'Confirm simulated payment →'}
             </button>
-          </form>
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => releaseHold.mutate()}
+              disabled={releaseHold.isPending}
+            >
+              Release seats
+            </button>
+          </div>
+          <p className="muted micro">
+            This is a portfolio demo: payment is simulated and nothing is charged. If confirmation is
+            interrupted, the same payment key safely resumes the same tickets.
+          </p>
+        </form>
 
-          <aside className="fare-card" aria-label="Fare summary">
-            <p className="eyebrow">Fare summary</p>
-            <h2>{selectedSeats.join(', ')}</h2>
-            <p>{trip.data.busName}</p>
+        <aside className="trip-summary" aria-label="Payment summary">
+          <h2>Payment summary</h2>
+          <dl>
             <div>
-              <span>{selectedSeats.length} × seat fare</span>
-              <b>₹{totalFare.toLocaleString('en-IN')}</b>
+              <dt>Seats ({seats.length})</dt>
+              <dd>
+                {heldSeats} · ₹{hold.farePerSeat} each
+              </dd>
             </div>
             <div>
-              <span>Payment processing</span>
-              <b>₹0</b>
+              <dt>Fare</dt>
+              <dd>₹{total}</dd>
             </div>
-            <hr />
-            <div className="fare-total">
-              <strong>Total</strong>
-              <strong>₹{totalFare.toLocaleString('en-IN')}</strong>
+            <div>
+              <dt>Processing</dt>
+              <dd>₹0 (simulated)</dd>
             </div>
-            <p className="muted">This is a portfolio demo. Nothing will be charged.</p>
-          </aside>
-        </div>
-      )}
+            <div className="total-row">
+              <dt>Total</dt>
+              <dd>₹{total}</dd>
+            </div>
+          </dl>
+          {trip?.policy && (
+            <p className="muted micro">
+              Cancellation policy: this operator closes cancellation {trip.policy.cutoffMinutes / 60}h before
+              departure with a {trip.policy.feePercent}% fee. Refunds are quoted per ticket before you
+              cancel.
+            </p>
+          )}
+        </aside>
+      </div>
     </main>
   )
 }

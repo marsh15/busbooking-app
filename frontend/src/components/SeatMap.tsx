@@ -1,5 +1,18 @@
 import type { Seat } from '../types'
 
+function seatTone(seat: Seat, isSelected: boolean) {
+  if (seat.status === 'BOOKED') return 'booked'
+  if (seat.status === 'HELD' && !seat.heldByYou) return 'held'
+  return isSelected ? 'selected' : 'available'
+}
+
+function seatLabel(seat: Seat, isSelected: boolean) {
+  if (seat.status === 'BOOKED') return `Seat ${seat.number}, booked`
+  if (seat.status === 'HELD' && !seat.heldByYou) return `Seat ${seat.number}, held by another traveller`
+  if (isSelected) return `Seat ${seat.number}, selected`
+  return `Seat ${seat.number}, available`
+}
+
 export function SeatMap({
   seats,
   selected,
@@ -11,6 +24,7 @@ export function SeatMap({
 }) {
   function toggle(seat: Seat) {
     if (seat.status === 'BOOKED') return
+    if (seat.status === 'HELD' && !seat.heldByYou) return
     if (selected.includes(seat.number)) return onChange(selected.filter((number) => number !== seat.number))
     if (selected.length < 6) onChange([...selected, seat.number])
   }
@@ -35,6 +49,10 @@ export function SeatMap({
           Selected
         </span>
         <span>
+          <i className="seat held" />
+          Held by another traveller
+        </span>
+        <span>
           <i className="seat booked" />
           Booked
         </span>
@@ -42,18 +60,22 @@ export function SeatMap({
       <div className="bus-shell">
         <div className="driver">Driver</div>
         <div className="seat-grid" role="group" aria-label="Bus seat map">
-          {seats.map((seat) => (
-            <button
-              key={seat.id}
-              className={`seat column-${seat.column} ${seat.status === 'BOOKED' ? 'booked' : selected.includes(seat.number) ? 'selected' : 'available'}`}
-              onClick={() => toggle(seat)}
-              disabled={seat.status === 'BOOKED'}
-              aria-pressed={selected.includes(seat.number)}
-              aria-label={`Seat ${seat.number}, ${seat.status === 'BOOKED' ? 'booked' : selected.includes(seat.number) ? 'selected' : 'available'}`}
-            >
-              {seat.number}
-            </button>
-          ))}
+          {seats.map((seat) => {
+            const isSelected = selected.includes(seat.number)
+            const tone = seatTone(seat, isSelected)
+            return (
+              <button
+                key={seat.id}
+                className={`seat column-${seat.column} ${tone}`}
+                onClick={() => toggle(seat)}
+                disabled={seat.status === 'BOOKED' || (seat.status === 'HELD' && !seat.heldByYou)}
+                aria-pressed={isSelected}
+                aria-label={seatLabel(seat, isSelected)}
+              >
+                {seat.number}
+              </button>
+            )
+          })}
         </div>
       </div>
     </section>

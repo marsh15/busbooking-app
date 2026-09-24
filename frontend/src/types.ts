@@ -26,7 +26,8 @@ export interface Seat {
   deck: number
   row: number
   column: number
-  status: 'AVAILABLE' | 'BOOKED'
+  status: 'AVAILABLE' | 'HELD' | 'BOOKED'
+  heldByYou?: boolean
 }
 export interface TripDetail extends TripCard {
   seats: Seat[]
@@ -84,4 +85,41 @@ export interface PageInfo {
 export interface Paginated<T> {
   data: T
   pagination: PageInfo
+}
+export interface SeatHold {
+  id: string
+  tripId: string
+  state: 'ACTIVE' | 'EXPIRED' | 'CONSUMED' | 'RELEASED'
+  expiresAt: string
+  farePerSeat: number
+  seatNumbers: string[]
+  trip: {
+    id: string
+    busName: string
+    operator: string
+    travelDate: string
+    departureTime: string
+    arrivalTime: string
+    route: string
+  }
+}
+export type PaymentAttemptStatus = 'PENDING' | 'SUCCEEDED' | 'FAILED' | 'RECONCILIATION_REQUIRED'
+export interface CheckoutResult {
+  attempt: {
+    id: string
+    status: PaymentAttemptStatus
+    amount: number
+    resultCode?: string
+    message: string
+  }
+  booking?: BookingGroup
+}
+export interface CancellationQuote {
+  ticketId: string
+  eligible: boolean
+  reason?: string
+  refundAmount: number
+  refundPercent: number
+  windowLabel: string
+  quotedAt: string
 }

@@ -39,6 +39,15 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
       navigate((location.state as { from?: string } | null)?.from || '/', { replace: true })
     },
   })
+  const demoMutation = useMutation({
+    mutationFn: () => client.startDemo(),
+    onSuccess: (result) => {
+      setUser(result.user)
+      queryClient.setQueryData(['me'], result)
+      navigate((location.state as { from?: string } | null)?.from || '/', { replace: true })
+    },
+  })
+  const finishDemo = () => demoMutation.mutate()
 
   return (
     <main id="main-content" className="auth-page">
@@ -65,21 +74,22 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
           </p>
         </div>
 
-        {!isRegister && (
-          <button
-            className="demo-login"
-            type="button"
-            onClick={() => {
-              form.setValue('email', 'demo@voyagebus.in', { shouldValidate: true })
-              form.setValue('password', 'VoyageBus123!', { shouldValidate: true })
-            }}
-          >
-            <span>
-              <strong>Demo traveller</strong>
-              <small>No signup required</small>
-            </span>
-            <span aria-hidden="true">Use account →</span>
-          </button>
+        <button
+          className="demo-login"
+          type="button"
+          onClick={finishDemo}
+          disabled={demoMutation.isPending}
+        >
+          <span>
+            <strong>Start a private demo session</strong>
+            <small>Isolated account, lasts 24 hours — no signup</small>
+          </span>
+          <span aria-hidden="true">{demoMutation.isPending ? 'Opening…' : 'Start →'}</span>
+        </button>
+        {demoMutation.isError && (
+          <p className="form-error" role="alert">
+            {getApiMessage(demoMutation.error) || 'Could not open a demo session. Try again.'}
+          </p>
         )}
 
         <form onSubmit={form.handleSubmit((values) => mutation.mutate(values))} noValidate>

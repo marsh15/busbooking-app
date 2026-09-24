@@ -742,3 +742,125 @@ footer strong {
     border-top-color: var(--voyage-teal-deep);
   }
 }
+
+/* --- Hold-based checkout --- */
+
+.seat.held {
+  background: var(--surface);
+  border: 1px dashed var(--muted);
+  color: var(--muted);
+  cursor: not-allowed;
+  opacity: 0.75;
+}
+
+.checkout-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.hold-countdown {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  padding: 10px 16px;
+  background: color-mix(in srgb, var(--voyage-teal) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--voyage-teal) 35%, transparent);
+  border-radius: 12px;
+  min-width: 108px;
+}
+
+.hold-countdown small {
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.hold-countdown strong {
+  font-size: 1.35rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--voyage-teal-deep);
+}
+
+.hold-countdown.urgent {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+}
+
+.hold-countdown.urgent strong {
+  color: var(--danger);
+}
+
+.checkout-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 28px;
+  align-items: start;
+}
+
+.passenger-row {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin: 0 0 14px;
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 14px;
+}
+
+.passenger-row legend {
+  font-size: 0.8rem;
+  color: var(--muted);
+  padding: 0 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.checkout-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.checkout-actions .ghost,
+button.ghost {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--ink);
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+button.ghost:hover:not(:disabled) {
+  border-color: var(--voyage-teal);
+  background: color-mix(in srgb, var(--voyage-teal) 6%, transparent);
+}
+
+.muted.micro {
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 860px) {
+  .checkout-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .passenger-row {
+    grid-template-columns: 1fr;
+  }
+
+  .hold-countdown {
+    align-items: flex-start;
+  }
+}

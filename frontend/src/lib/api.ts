@@ -1,5 +1,16 @@
 import axios from 'axios'
-import type { BookingGroup, Paginated, ParsedSearch, RouteInfo, TripCard, TripDetail, User } from '../types'
+import type {
+  BookingGroup,
+  CancellationQuote,
+  CheckoutResult,
+  Paginated,
+  ParsedSearch,
+  RouteInfo,
+  SeatHold,
+  TripCard,
+  TripDetail,
+  User,
+} from '../types'
 
 const api = axios.create({ baseURL: import.meta.env.VITE_API_BASE_URL || '/api', withCredentials: true })
 let csrfToken: string | undefined
@@ -26,9 +37,13 @@ export const client = {
     await csrf()
     return data<{ user: User }>(api.post('/auth/register', values))
   },
+  startDemo: async () => {
+    await csrf()
+    return data<{ user: User }>(api.post('/auth/demo', {}))
+  },
   logout: async () => {
     await csrf()
-    return data<{ loggedOut: boolean }>(api.post('/auth/logout'))
+    return data<{ loggedOut: boolean }>(api.post('/auth/logout', {}))
   },
   route: (source: string, destination: string) =>
     data<RouteInfo>(api.get('/routes/search', { params: { source, destination } })),
@@ -41,13 +56,31 @@ export const client = {
     data<TripDetail>(api.get(`/buses/${busId}`, { params: { tripId } })),
   tripById: (tripId: string) => data<TripDetail>(api.get(`/buses/trip/${tripId}`)),
   parse: (query: string) => data<ParsedSearch>(api.post('/ai/parse-search', { query })),
-  book: async (tripId: string, passengers: Array<{ seatNumber: string; name: string; age: number }>) => {
+  hold: async (tripId: string, seatNumbers: string[]) => {
     await csrf()
-    return data<BookingGroup>(api.post('/bookings', { tripId, passengers }))
+    return data<SeatHold>(api.post('/holds', { tripId, seatNumbers }))
   },
+  getHold: (holdId: string) => data<SeatHold>(api.get(`/holds/${holdId}`)),
+  releaseHold: async (holdId: string) => {
+    await csrf()
+    await api.delete(`/holds/${holdId}`)
+  },
+  confirm: async (
+    holdId: string,
+    passengers: Array<{ name: string; age: number }>,
+    idempotencyKey: string,
+  ) => {
+    await csrf()
+    return data<CheckoutResult>(
+      api.post('/checkouts/confirm', { holdId, passengers }, { headers: { 'idempotency-key': idempotencyKey } }),
+    )
+  },
+  getAttempt: (attemptId: string) => data<CheckoutResult>(api.get(`/checkouts/attempts/${attemptId}`)),
   bookings: (page = 1, pageSize = 20) =>
     paginated<BookingGroup[]>(api.get('/bookings/me', { params: { page, pageSize } })),
   booking: (id: string) => data<BookingGroup>(api.get(`/bookings/group/${id}`)),
+  cancellationQuote: (ticketId: string) =>
+    data<CancellationQuote>(api.get(`/bookings/${ticketId}/cancellation-quote`)),
   cancel: async (ticketId: string) => {
     await csrf()
     return data<BookingGroup>(api.patch(`/bookings/${ticketId}/cancel`))
