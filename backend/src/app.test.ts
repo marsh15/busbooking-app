@@ -318,8 +318,7 @@ describe.sequential('VoyageBus API with MySQL persistence', () => {
         arrivalTime: '13:30',
         durationMinutes: 360,
         fare: 500,
-        cancellationCutoffMinutes: 360,
-        cancellationFeePercent: 10,
+        policyId: (await prisma.cancellationPolicy.findFirstOrThrow()).id,
       },
     })
     const response = await owner.agent
@@ -467,15 +466,20 @@ describe.sequential('VoyageBus API with MySQL persistence', () => {
       .set('x-csrf-token', stranger.csrf)
       .send()
       .expect(403)
+    // The server quote drives the UI and the commit recalculates the same.
+    const quote = await owner.agent
+      .get(`/api/bookings/${firstTicket.id}/cancellation-quote`)
+      .expect(200)
+    expect(quote.body.data.eligible).toBe(true)
+    expect(quote.body.data.refundPercent).toBeGreaterThanOrEqual(25)
+    expect(quote.body.data.policy.rules.length).toBeGreaterThan(1)
     const partial = await owner.agent
       .patch(`/api/bookings/${firstTicket.id}/cancel`)
       .set('x-csrf-token', owner.csrf)
       .send()
       .expect(200)
     expect(partial.body.data.status).toBe('PARTIALLY_CANCELLED')
-    expect(partial.body.data.tickets[0].refundAmount).toBe(
-      Math.round(partial.body.data.tickets[0].totalFare * 0.9),
-    )
+    expect(partial.body.data.tickets[0].refundAmount).toBe(quote.body.data.refundAmount)
     const final = await owner.agent
       .patch(`/api/bookings/${secondTicket.id}/cancel`)
       .set('x-csrf-token', owner.csrf)
@@ -513,6 +517,117 @@ describe.sequential('VoyageBus API with MySQL persistence', () => {
         })
       ).status,
     ).toBe('AVAILABLE')
+  })
+
+
+  it('keeps a booking on its checkout-time policy even after the operator re-versions', async () => {
+    const owner = await signedInAgent('snapshot@example.com')
+    const trip = await firstTrip()
+    const hold = await createHold(owner.agent, owner.csrf, trip.id, ['5D'])
+    const created = await confirm(
+      owner.agent,
+      owner.csrf,
+      hold.id,
+      [{ name: 'Snapshot Rider', age: 44 }],
+      idKey('snapshot'),
+    ).expect(200)
+    const ticketId = created.body.data.booking.tickets[0].id
+    const snapshot = created.body.data.booking.policySnapshot
+    expect(snapshot.rules.length).toBeGreaterThan(1)
+
+    // The operator ships a harsher version after the sale.
+    await prisma.cancellationPolicy.create({
+      data: {
+        operatorId: (await prisma.cancellationPolicy.findFirstOrThrow({ where: { version: snapshot.version } })).operatorId,
+        version: 99,
+        isActive: true,
+        rules: [{ beforeDepartureHours: 999, refundPercent: 5 }],
+      },
+    })
+
+    const quote = await owner.agent.get(`/api/bookings/${ticketId}/cancellation-quote`).expect(200)
+    expect(quote.body.data.policy.version).toBe(snapshot.version)
+    expect(quote.body.data.policy.rules).toEqual(snapshot.rules)
+    await prisma.cancellationPolicy.deleteMany({ where: { version: 99 } })
+  })
+
+  it('cancels two different tickets concurrently and lands on the right final group status', async () => {
+    const owner = await signedInAgent('two-cancels@example.com')
+    const trip = await firstTrip()
+    const hold = await createHold(owner.agent, owner.csrf, trip.id, ['2C', '2D'])
+    const created = await confirm(
+      owner.agent,
+      owner.csrf,
+      hold.id,
+      [
+        { name: 'Twin One', age: 30 },
+        { name: 'Twin Two', age: 31 },
+      ],
+      idKey('twins'),
+    ).expect(200)
+    const [firstTicket, secondTicket] = created.body.data.booking.tickets
+    const [one, two] = await Promise.all([
+      owner.agent.patch(`/api/bookings/${firstTicket.id}/cancel`).set('x-csrf-token', owner.csrf).send(),
+      owner.agent.patch(`/api/bookings/${secondTicket.id}/cancel`).set('x-csrf-token', owner.csrf).send(),
+    ])
+    expect([one.status, two.status].sort()).toEqual([200, 200])
+    const group = await prisma.bookingGroup.findUniqueOrThrow({
+      where: { id: created.body.data.booking.id },
+    })
+    expect(group.status).toBe('CANCELLED')
+    const seats = await prisma.seat.findMany({
+      where: { tripId: trip.id, seatNumber: { in: ['2C', '2D'] } },
+    })
+    expect(seats.every((seat) => seat.status === 'AVAILABLE')).toBe(true)
+    expect(
+      (await prisma.booking.findMany({ where: { groupId: group.id } })).every(
+        (ticket) => ticket.status === 'CANCELLED' && ticket.refundAmount!.greaterThan(0),
+      ),
+    ).toBe(true)
+  })
+
+  it('closes cancellation near departure with an honest reason', async () => {
+    const owner = await signedInAgent('closing@example.com')
+    const policy = await prisma.cancellationPolicy.findFirstOrThrow()
+    const trip = await prisma.trip.create({
+      data: {
+        routeId: (await prisma.route.findFirstOrThrow()).id,
+        busId: (await prisma.bus.findFirstOrThrow()).id,
+        policyId: policy.id,
+        travelDate: new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`),
+        departureTime: '23:50',
+        arrivalTime: '23:55',
+        durationMinutes: 5,
+        fare: 400,
+      },
+    })
+    const soon = new Date(Date.now() + 30 * 60_000)
+    await prisma.trip.update({ where: { id: trip.id }, data: { travelDate: soon } })
+    const hold = await owner.agent
+      .post('/api/holds')
+      .set('x-csrf-token', owner.csrf)
+      .send({ tripId: trip.id, seatNumbers: ['1A'] })
+    if (hold.status === 201) {
+      const created = await confirm(
+        owner.agent,
+        owner.csrf,
+        hold.body.data.id,
+        [{ name: 'Closing Rider', age: 33 }],
+        idKey('closing'),
+      ).expect(200)
+      const ticketId = created.body.data.booking.tickets[0].id
+      const quote = await owner.agent.get(`/api/bookings/${ticketId}/cancellation-quote`).expect(200)
+      expect(quote.body.data.eligible).toBe(false)
+      expect(quote.body.data.reason).toContain('closed')
+      await owner.agent
+        .patch(`/api/bookings/${ticketId}/cancel`)
+        .set('x-csrf-token', owner.csrf)
+        .send()
+        .expect(409)
+    }
+    await prisma.seat.deleteMany({ where: { tripId: trip.id } })
+    await prisma.seatHold.deleteMany({ where: { tripId: trip.id } })
+    await prisma.trip.delete({ where: { id: trip.id } })
   })
 
   it('retrieves the same booking and PNR after reconnecting the database client', async () => {

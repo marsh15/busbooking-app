@@ -33,7 +33,7 @@ busesRouter.get(
         durationMinutes: trip.durationMinutes,
         fare: trip.fare,
         isAc: trip.bus.isAc,
-        busType: trip.bus.type,
+        busType: trip.bus.busType,
         amenities: trip.bus.amenities,
         availableSeats: trip.seats.filter((seat) => seat.status === 'AVAILABLE').length,
       })),

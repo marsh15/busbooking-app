@@ -7,6 +7,7 @@ import { hasDeparted } from '../utils/ist.js'
 import { ApiError } from '../utils/http.js'
 import { logger } from '../config/logger.js'
 import { mockProvider, ProviderTimeoutError, type ProviderOutcome } from './payments.js'
+import { parseRules } from './policies.js'
 
 const hydratedGroupInclude = { bookings: { include: { trip: { include: tripInclude } } } } as const
 
@@ -92,7 +93,10 @@ async function finalizeSuccess(
         async (tx) => {
           const hold = await tx.seatHold.findUnique({
             where: { id: attempt.holdId },
-            include: { seats: { orderBy: { id: 'asc' } }, trip: true },
+            include: {
+              seats: { orderBy: { id: 'asc' } },
+              trip: { include: { policy: { include: { operator: true } } } },
+            },
           })
           if (!hold || hold.userId !== attempt.userId)
             throw new ApiError(404, 'HOLD_NOT_FOUND', 'This seat hold no longer exists.')
@@ -154,6 +158,16 @@ async function finalizeSuccess(
               pnr: `VB${randomUUID().replaceAll('-', '').slice(0, 12).toUpperCase()}`,
               userId: attempt.userId,
               holdId: hold.id,
+              // Immutable terms for this sale: later policy edits cannot
+              // change what this booking was sold under.
+              policySnapshot: {
+                operatorName: hold.trip.policy.operator.name,
+                version: hold.trip.policy.version,
+                rules: parseRules(hold.trip.policy.rules).map((rule) => ({
+                  beforeDepartureHours: rule.beforeDepartureHours,
+                  refundPercent: rule.refundPercent,
+                })),
+              },
               bookings: {
                 create: passengers.map((passenger, index) => ({
                   userId: attempt.userId,

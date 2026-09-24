@@ -1,5 +1,5 @@
 import { prisma } from '../data/prisma.js'
-import { effectiveSeatStatus, tripCardDto, tripDto, tripInclude } from '../data/dto.js'
+import { tripCardDto, tripDto, tripInclude } from '../data/dto.js'
 import { ApiError } from '../utils/http.js'
 
 export async function getTrip(busId: string, tripId: string, viewerId?: string | null) {
@@ -9,7 +9,7 @@ export async function getTrip(busId: string, tripId: string, viewerId?: string |
   return {
     ...tripCardDto(trip),
     seats: value.seats,
-    policy: { cutoffMinutes: value.cancellationCutoffMinutes, feePercent: value.cancellationFeePercent },
+    policy: value.policy,
   }
 }
 
@@ -20,8 +20,6 @@ export async function getTripById(tripId: string, viewerId?: string | null) {
   return {
     ...tripCardDto(trip),
     seats: value.seats,
-    policy: { cutoffMinutes: value.cancellationCutoffMinutes, feePercent: value.cancellationFeePercent },
+    policy: value.policy,
   }
 }
-
-export { effectiveSeatStatus }

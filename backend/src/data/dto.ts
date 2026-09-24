@@ -1,8 +1,10 @@
 import type { Prisma } from '@prisma/client'
+import { parseRules } from '../services/policies.js'
 
 export const tripInclude = {
   route: { include: { source: true, destination: true } },
-  bus: true,
+  bus: { include: { operator: true } },
+  policy: { include: { operator: true } },
   seats: { include: { hold: { select: { userId: true } } } },
 } satisfies Prisma.TripInclude
 
@@ -14,6 +16,14 @@ export function cityDto(city: { id: string; name: string }) {
 
 export function routeDto(route: TripRecord['route']) {
   return { id: route.id, source: cityDto(route.source), destination: cityDto(route.destination) }
+}
+
+export function policyDto(policy: TripRecord['policy']) {
+  return {
+    operatorName: policy.operator.name,
+    version: policy.version,
+    rules: parseRules(policy.rules),
+  }
 }
 
 /**
@@ -48,14 +58,20 @@ export function tripDto(trip: TripRecord, viewerId?: string | null) {
   return {
     id: trip.id,
     route: routeDto(trip.route),
-    bus: { ...trip.bus, amenities: Array.isArray(trip.bus.amenities) ? trip.bus.amenities : [] },
+    bus: {
+      id: trip.bus.id,
+      name: trip.bus.name,
+      operator: trip.bus.operator.name,
+      isAc: trip.bus.isAc,
+      busType: trip.bus.type,
+      amenities: Array.isArray(trip.bus.amenities) ? trip.bus.amenities : [],
+    },
     travelDate: trip.travelDate.toISOString().slice(0, 10),
     departureTime: trip.departureTime,
     arrivalTime: trip.arrivalTime,
     durationMinutes: trip.durationMinutes,
     fare: trip.fare.toNumber(),
-    cancellationCutoffMinutes: trip.cancellationCutoffMinutes,
-    cancellationFeePercent: trip.cancellationFeePercent.toNumber(),
+    policy: policyDto(trip.policy),
     seats: trip.seats.map((seat) => seatDto(seat, viewerId)),
   }
 }
@@ -73,8 +89,8 @@ export function tripCardDto(trip: TripRecord) {
     arrivalTime: value.arrivalTime,
     durationMinutes: value.durationMinutes,
     fare: value.fare,
-    isAc: value.bus.isAc,
-    busType: value.bus.type,
+    isAc: trip.bus.isAc,
+    busType: trip.bus.type,
     amenities: value.bus.amenities,
     availableSeats: trip.seats.filter((seat) => effectiveSeatStatus(seat) === 'AVAILABLE').length,
   }
@@ -91,6 +107,7 @@ export function bookingGroupDto(group: HydratedGroup) {
     userId: group.userId,
     status: group.status,
     createdAt: group.createdAt.toISOString(),
+    ...(group.policySnapshot ? { policySnapshot: group.policySnapshot } : {}),
     tickets: group.bookings.map((ticket) => ({
       id: ticket.id,
       groupId: ticket.groupId,

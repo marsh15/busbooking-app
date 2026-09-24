@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { requireAuth, type AuthRequest } from '../middleware/auth.js'
 import { paginationSchema } from '../validators.js'
 import { asyncRoute } from '../utils/http.js'
-import { cancelTicket, getBooking, getBookings } from '../services/bookings.js'
+import { cancelTicket, getBooking, getBookings, getCancellationQuote } from '../services/bookings.js'
 
 export const bookingsRouter = Router()
 bookingsRouter.use(requireAuth)
@@ -30,9 +30,19 @@ bookingsRouter.get(
     response.json({ data: await getBooking(request.userId!, String(request.params.id)) }),
   ),
 )
+bookingsRouter.get(
+  '/:ticketId/cancellation-quote',
+  asyncRoute(async (request: AuthRequest, response) =>
+    response.json({
+      data: await getCancellationQuote(request.userId!, String(request.params.ticketId)),
+    }),
+  ),
+)
 bookingsRouter.patch(
   '/:id/cancel',
   asyncRoute(async (request: AuthRequest, response) =>
-    response.json({ data: await cancelTicket(request.userId!, String(request.params.id)) }),
+    response.json({
+      data: await cancelTicket(request.userId!, String(request.params.id), request.requestId),
+    }),
   ),
 )

@@ -64,29 +64,47 @@ model Route {
   trips Trip[]
   @@unique([sourceId, destinationId])
 }
+model Operator {
+  id String @id @default(uuid())
+  name String @unique
+  buses Bus[]
+  policies CancellationPolicy[]
+}
+model CancellationPolicy {
+  id String @id @default(uuid())
+  operatorId String
+  version Int
+  isActive Boolean @default(true)
+  rules Json
+  createdAt DateTime @default(now())
+  operator Operator @relation(fields: [operatorId], references: [id])
+  trips Trip[]
+  @@unique([operatorId, version])
+}
 model Bus {
   id String @id @default(uuid())
   name String
-  operator String
+  operatorId String
   type BusType
   isAc Boolean
   amenities Json
+  operator Operator @relation(fields: [operatorId], references: [id])
   trips Trip[]
 }
 model Trip {
   id String @id @default(uuid())
   routeId String
   busId String
+  policyId String
   travelDate DateTime
   departureTime String
   arrivalTime String
   durationMinutes Int
   isDemo Boolean @default(false)
-  fare Decimal @db.Decimal(10,2)
-  cancellationCutoffMinutes Int @default(360)
-  cancellationFeePercent Decimal @db.Decimal(5,2)
+  fare Decimal @db.Decimal(10, 2)
   route Route @relation(fields: [routeId], references: [id])
   bus Bus @relation(fields: [busId], references: [id])
+  policy CancellationPolicy @relation(fields: [policyId], references: [id])
   seats Seat[]
   holds SeatHold[]
   bookings Booking[]
@@ -152,6 +170,7 @@ model BookingGroup {
   userId String
   holdId String? @unique
   status GroupStatus @default(ACTIVE)
+  policySnapshot Json?
   createdAt DateTime @default(now())
   user User @relation(fields: [userId], references: [id])
   hold SeatHold? @relation(fields: [holdId], references: [id])

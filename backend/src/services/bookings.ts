@@ -1,8 +1,10 @@
 import { Prisma } from '@prisma/client'
 import { bookingGroupDto, tripInclude } from '../data/dto.js'
 import { prisma } from '../data/prisma.js'
-import { isCancellationOpen } from '../utils/ist.js'
+import { departureInstant } from '../utils/ist.js'
 import { ApiError } from '../utils/http.js'
+import { logger } from '../config/logger.js'
+import { parseRules, parseSnapshot, quoteRefund } from './policies.js'
 
 const hydratedGroupInclude = { bookings: { include: { trip: { include: tripInclude } } } } as const
 
@@ -38,30 +40,94 @@ export async function getBooking(userId: string, groupId: string) {
   return bookingGroupDto(group)
 }
 
-export async function cancelTicket(userId: string, ticketId: string) {
+/** Terms the ticket was sold under: the group snapshot, or the trip's live policy for legacy rows. */
+async function termsForTicket(ticket: { groupId: string; tripId: string }) {
+  const group = await prisma.bookingGroup.findUnique({
+    where: { id: ticket.groupId },
+    select: { policySnapshot: true },
+  })
+  const snapshot = parseSnapshot(group?.policySnapshot)
+  if (snapshot) return snapshot
+  const trip = await prisma.trip.findUnique({
+    where: { id: ticket.tripId },
+    include: { policy: { include: { operator: true } } },
+  })
+  if (!trip) throw new ApiError(404, 'TRIP_NOT_FOUND', 'This trip is no longer available.')
+  return {
+    operatorName: trip.policy.operator.name,
+    version: trip.policy.version,
+    rules: parseRules(trip.policy.rules),
+  }
+}
+
+/**
+ * Ticket-level quote. The same calculation runs again inside the cancellation
+ * transaction, because a quote can go stale while the traveller decides.
+ */
+export async function getCancellationQuote(userId: string, ticketId: string) {
+  const ticket = await prisma.booking.findUnique({ where: { id: ticketId }, include: { trip: true } })
+  if (!ticket || ticket.userId !== userId)
+    throw new ApiError(403, 'FORBIDDEN', 'You cannot cancel this ticket.')
+  const terms = await termsForTicket(ticket)
+  const hoursUntilDeparture = (departureInstant(ticket.trip) - Date.now()) / 3_600_000
+  const quote = quoteRefund(terms.rules, ticket.totalFare, hoursUntilDeparture)
+  return {
+    ticketId: ticket.id,
+    eligible: ticket.status === 'ACTIVE' && quote.eligible,
+    ...(ticket.status !== 'ACTIVE'
+      ? { reason: 'This ticket has already been cancelled.' }
+      : !quote.eligible
+        ? { reason: quote.windowLabel }
+        : {}),
+    refundAmount: quote.refundAmount.toNumber(),
+    refundPercent: quote.refundPercent,
+    windowLabel: quote.windowLabel,
+    policy: terms,
+    quotedAt: new Date().toISOString(),
+  }
+}
+
+export async function cancelTicket(userId: string, ticketId: string, requestId?: string) {
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
       const groupId = await prisma.$transaction(
         async (tx) => {
-          const ticket = await tx.booking.findUnique({ where: { id: ticketId }, include: { trip: true } })
+          const preliminary = await tx.booking.findUnique({
+            where: { id: ticketId },
+            select: { groupId: true, userId: true },
+          })
+          if (!preliminary || preliminary.userId !== userId)
+            throw new ApiError(403, 'FORBIDDEN', 'You cannot cancel this ticket.')
+          // Serialize changes to the group so concurrent cancellations of
+          // different tickets compute the correct final group status.
+          await tx.$queryRaw`SELECT id FROM \`BookingGroup\` WHERE id = ${preliminary.groupId} FOR UPDATE`
+
+          const ticket = await tx.booking.findUnique({
+            where: { id: ticketId },
+            include: { trip: { include: { policy: { include: { operator: true } } } } },
+          })
           if (!ticket || ticket.userId !== userId)
             throw new ApiError(403, 'FORBIDDEN', 'You cannot cancel this ticket.')
           if (ticket.status !== 'ACTIVE')
             throw new ApiError(409, 'TICKET_NOT_ACTIVE', 'This ticket has already been cancelled.')
-          const tripForCutoff = {
-            travelDate: ticket.trip.travelDate.toISOString().slice(0, 10),
-            departureTime: ticket.trip.departureTime,
-            cancellationCutoffMinutes: ticket.trip.cancellationCutoffMinutes,
+
+          const group = await tx.bookingGroup.findUnique({
+            where: { id: ticket.groupId },
+            select: { policySnapshot: true },
+          })
+          const snapshot = parseSnapshot(group?.policySnapshot) ?? {
+            operatorName: ticket.trip.policy.operator.name,
+            version: ticket.trip.policy.version,
+            rules: parseRules(ticket.trip.policy.rules),
           }
-          if (!isCancellationOpen(tripForCutoff))
-            throw new ApiError(409, 'CANCELLATION_CLOSED', 'The six-hour cancellation window has closed.')
-          const refundAmount = ticket.totalFare
-            .mul(new Prisma.Decimal(100).minus(ticket.trip.cancellationFeePercent))
-            .div(100)
-            .toDecimalPlaces(0)
+          // Recalculate at commit time: a stale quote may cross a window.
+          const hoursUntilDeparture = (departureInstant(ticket.trip) - Date.now()) / 3_600_000
+          const quote = quoteRefund(snapshot.rules, ticket.totalFare, hoursUntilDeparture)
+          if (!quote.eligible) throw new ApiError(409, 'CANCELLATION_CLOSED', quote.windowLabel)
+
           const cancelled = await tx.booking.updateMany({
             where: { id: ticket.id, userId, status: 'ACTIVE' },
-            data: { status: 'CANCELLED', cancelledAt: new Date(), refundAmount },
+            data: { status: 'CANCELLED', cancelledAt: new Date(), refundAmount: quote.refundAmount },
           })
           if (cancelled.count !== 1)
             throw new ApiError(409, 'TICKET_NOT_ACTIVE', 'This ticket has already been cancelled.')
@@ -78,10 +144,17 @@ export async function cancelTicket(userId: string, ticketId: string) {
                 activeCount === 0 ? 'CANCELLED' : activeCount < totalCount ? 'PARTIALLY_CANCELLED' : 'ACTIVE',
             },
           })
+          logger.info('ticket_cancelled', {
+            requestId,
+            ticketId,
+            groupId: ticket.groupId,
+            refundPercent: quote.refundPercent,
+          })
           return ticket.groupId
         },
-        // Group-status recompute and the guarded ticket update are safe under
-        // default isolation; P2034 conflicts retry below.
+        // READ COMMITTED (MySQL + TiDB) so the counts after the group lock
+        // observe the other cancellation's committed rows; P2034 conflicts retry.
+        { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted },
       )
       return hydrateGroup(groupId)
     } catch (error) {

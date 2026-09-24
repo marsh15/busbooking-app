@@ -21,11 +21,33 @@ const pairs: Array<[string, string]> = [
   ['Kochi', 'Thiruvananthapuram'],
   ['Visakhapatnam', 'Hyderabad'],
 ]
+// Clearly fictional operators with distinct, versioned cancellation windows:
+// Marigold closes 6h out; Peacock closes 3h out with smaller refunds.
+const operators = [
+  {
+    name: 'Marigold Trail Travels',
+    policyKey: 'marigold:v1',
+    rules: [
+      { beforeDepartureHours: 72, refundPercent: 90 },
+      { beforeDepartureHours: 24, refundPercent: 70 },
+      { beforeDepartureHours: 6, refundPercent: 40 },
+    ],
+  },
+  {
+    name: 'Peacock Roadways',
+    policyKey: 'peacock:v1',
+    rules: [
+      { beforeDepartureHours: 48, refundPercent: 85 },
+      { beforeDepartureHours: 12, refundPercent: 60 },
+      { beforeDepartureHours: 3, refundPercent: 25 },
+    ],
+  },
+]
 const buses = [
   {
     id: 'bus-amber',
     name: 'Amber Star',
-    operator: 'Saffron Travels',
+    operatorName: 'Marigold Trail Travels',
     type: 'SLEEPER' as const,
     isAc: true,
     amenities: ['Wi-Fi', 'Charging point', 'Blanket', 'Arrival alerts'],
@@ -33,7 +55,7 @@ const buses = [
   {
     id: 'bus-coast',
     name: 'Coastal Express',
-    operator: 'Blue Coast',
+    operatorName: 'Peacock Roadways',
     type: 'SEATER' as const,
     isAc: true,
     amenities: ['Wi-Fi', 'Water bottle', 'Charging point'],
@@ -41,7 +63,7 @@ const buses = [
   {
     id: 'bus-night',
     name: 'Night Rider',
-    operator: 'Deccan Mobility',
+    operatorName: 'Marigold Trail Travels',
     type: 'SLEEPER' as const,
     isAc: false,
     amenities: ['Blanket', 'Reading light', 'First aid'],
@@ -49,7 +71,7 @@ const buses = [
   {
     id: 'bus-day',
     name: 'Dayline',
-    operator: 'South Link',
+    operatorName: 'Peacock Roadways',
     type: 'SEATER' as const,
     isAc: false,
     amenities: ['Charging point', 'Water bottle'],
@@ -91,9 +113,35 @@ export async function seedDemoData(seedDate = process.env.SEED_DATE || istDate()
       create: { id: stableId('route', `${source}:${destination}`), sourceId, destinationId },
     })
   }
+  for (const operator of operators) {
+    const operatorId = stableId('operator', operator.name)
+    await prisma.operator.upsert({ where: { id: operatorId }, update: {}, create: { id: operatorId, name: operator.name } })
+    await prisma.cancellationPolicy.upsert({
+      where: { operatorId_version: { operatorId, version: 1 } },
+      update: {},
+      create: {
+        id: stableId('policy', operator.policyKey),
+        operatorId,
+        version: 1,
+        isActive: true,
+        rules: operator.rules,
+      },
+    })
+  }
   for (const bus of buses) {
     const id = stableId('bus', bus.id)
-    await prisma.bus.upsert({ where: { id }, update: {}, create: { ...bus, id } })
+    await prisma.bus.upsert({
+      where: { id },
+      update: {},
+      create: {
+        id,
+        name: bus.name,
+        operatorId: stableId('operator', bus.operatorName),
+        type: bus.type,
+        isAc: bus.isAc,
+        amenities: bus.amenities,
+      },
+    })
   }
   await prisma.user.upsert({
     where: { email: 'demo@voyagebus.in' },
@@ -116,6 +164,7 @@ export async function seedDemoData(seedDate = process.env.SEED_DATE || istDate()
         const data = {
           routeId: stableId('route', `${pairs[routeIndex]![0]}:${pairs[routeIndex]![1]}`),
           busId: stableId('bus', bus.id),
+          policyId: stableId('policy', operators.find((operator) => operator.name === bus.operatorName)!.policyKey),
           travelDate: new Date(`${travelDate}T00:00:00.000Z`),
           departureTime: slot === 0 ? '07:30' : '21:15',
           arrivalTime:
@@ -124,8 +173,6 @@ export async function seedDemoData(seedDate = process.env.SEED_DATE || istDate()
           durationMinutes: 300 + (routeIndex % 3) * 55,
           isDemo: true,
           fare: 480 + routeIndex * 120 + (bus.type === 'SLEEPER' ? 360 : 0) + (bus.isAc ? 180 : 0),
-          cancellationCutoffMinutes: 360,
-          cancellationFeePercent: 10,
         }
         await prisma.trip.upsert({ where: { id: tripId }, update: {}, create: { id: tripId, ...data } })
         const seats = []

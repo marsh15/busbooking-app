@@ -12,7 +12,7 @@ const seatUnavailable = () =>
 
 const holdInclude = {
   seats: { orderBy: { id: 'asc' as const } },
-  trip: { include: { route: { include: { source: true, destination: true } }, bus: true } },
+  trip: { include: { route: { include: { source: true, destination: true } }, bus: { include: { operator: true } } } },
 } satisfies Prisma.SeatHoldInclude
 
 type HoldRecord = Prisma.SeatHoldGetPayload<{ include: typeof holdInclude }>
@@ -31,7 +31,7 @@ export function holdDto(hold: HoldRecord, now = new Date()) {
     trip: {
       id: hold.trip.id,
       busName: hold.trip.bus.name,
-      operator: hold.trip.bus.operator,
+      operator: hold.trip.bus.operator.name,
       travelDate: hold.trip.travelDate.toISOString().slice(0, 10),
       departureTime: hold.trip.departureTime,
       arrivalTime: hold.trip.arrivalTime,
