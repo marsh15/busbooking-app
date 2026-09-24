@@ -98,9 +98,6 @@ export async function cancelTicket(userId: string, ticketId: string, requestId?:
           })
           if (!preliminary || preliminary.userId !== userId)
             throw new ApiError(403, 'FORBIDDEN', 'You cannot cancel this ticket.')
-          // Serialize changes to the group so concurrent cancellations of
-          // different tickets compute the correct final group status.
-          await tx.$queryRaw`SELECT id FROM \`BookingGroup\` WHERE id = ${preliminary.groupId} FOR UPDATE`
 
           const ticket = await tx.booking.findUnique({
             where: { id: ticketId },
@@ -135,15 +132,34 @@ export async function cancelTicket(userId: string, ticketId: string, requestId?:
             where: { id: ticket.seatId },
             data: { status: 'AVAILABLE', holdId: null, holdExpiresAt: null },
           })
-          const activeCount = await tx.booking.count({ where: { groupId: ticket.groupId, status: 'ACTIVE' } })
-          const totalCount = await tx.booking.count({ where: { groupId: ticket.groupId } })
-          await tx.bookingGroup.update({
-            where: { id: ticket.groupId },
-            data: {
-              status:
-                activeCount === 0 ? 'CANCELLED' : activeCount < totalCount ? 'PARTIALLY_CANCELLED' : 'ACTIVE',
-            },
-          })
+          // Recompute the group status with conditional writes, not a row
+          // lock: TiDB (the deployed engine) does not support the pessimistic
+          // SELECT ... FOR UPDATE this once took. A write only lands while the
+          // group still carries the status these counts were derived from, so
+          // a concurrent cancellation of a sibling ticket forces a re-derive —
+          // MySQL re-evaluates the condition after the row-lock wait, and on
+          // TiDB the losing transaction aborts at commit (P2034) and retries.
+          for (let pass = 0; ; pass += 1) {
+            if (pass >= 25)
+              throw new ApiError(
+                409,
+                'CANCELLATION_BUSY',
+                'This booking is changing too quickly. Please try again.',
+              )
+            const [group, activeCount, totalCount] = await Promise.all([
+              tx.bookingGroup.findUnique({ where: { id: ticket.groupId }, select: { status: true } }),
+              tx.booking.count({ where: { groupId: ticket.groupId, status: 'ACTIVE' } }),
+              tx.booking.count({ where: { groupId: ticket.groupId } }),
+            ])
+            const status =
+              activeCount === 0 ? 'CANCELLED' : activeCount < totalCount ? 'PARTIALLY_CANCELLED' : 'ACTIVE'
+            if (!group || group.status === status) break
+            const landed = await tx.bookingGroup.updateMany({
+              where: { id: ticket.groupId, status: group.status },
+              data: { status },
+            })
+            if (landed.count === 1) break
+          }
           logger.info('ticket_cancelled', {
             requestId,
             ticketId,
