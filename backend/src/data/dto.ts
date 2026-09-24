@@ -3,7 +3,7 @@ import type { Prisma } from '@prisma/client'
 export const tripInclude = {
   route: { include: { source: true, destination: true } },
   bus: true,
-  seats: true,
+  seats: { include: { hold: { select: { userId: true } } } },
 } satisfies Prisma.TripInclude
 
 type TripRecord = Prisma.TripGetPayload<{ include: typeof tripInclude }>
@@ -16,18 +16,35 @@ export function routeDto(route: TripRecord['route']) {
   return { id: route.id, source: cityDto(route.source), destination: cityDto(route.destination) }
 }
 
-export function seatDto(seat: TripRecord['seats'][number]) {
+/**
+ * A held seat whose expiry has passed is logically available without any
+ * cleanup job; the authoritative claim still happens through conditional
+ * writes in the hold service.
+ */
+export function effectiveSeatStatus(
+  seat: { status: string; holdExpiresAt: Date | null },
+  now = Date.now(),
+): 'AVAILABLE' | 'HELD' | 'BOOKED' {
+  if (seat.status === 'HELD' && (!seat.holdExpiresAt || seat.holdExpiresAt.getTime() <= now))
+    return 'AVAILABLE'
+  return seat.status as 'AVAILABLE' | 'HELD' | 'BOOKED'
+}
+
+export function seatDto(seat: TripRecord['seats'][number], viewerId?: string | null) {
+  const status = effectiveSeatStatus(seat)
+  const heldByYou = status === 'HELD' && !!viewerId && seat.hold?.userId === viewerId
   return {
     id: seat.id,
     number: seat.seatNumber,
     deck: seat.deck,
     row: seat.row,
     column: seat.column,
-    status: seat.status,
+    status,
+    ...(heldByYou ? { heldByYou: true } : {}),
   }
 }
 
-export function tripDto(trip: TripRecord) {
+export function tripDto(trip: TripRecord, viewerId?: string | null) {
   return {
     id: trip.id,
     route: routeDto(trip.route),
@@ -39,7 +56,7 @@ export function tripDto(trip: TripRecord) {
     fare: trip.fare.toNumber(),
     cancellationCutoffMinutes: trip.cancellationCutoffMinutes,
     cancellationFeePercent: trip.cancellationFeePercent.toNumber(),
-    seats: trip.seats.map(seatDto),
+    seats: trip.seats.map((seat) => seatDto(seat, viewerId)),
   }
 }
 
@@ -59,7 +76,7 @@ export function tripCardDto(trip: TripRecord) {
     isAc: value.bus.isAc,
     busType: value.bus.type,
     amenities: value.bus.amenities,
-    availableSeats: value.seats.filter((seat) => seat.status === 'AVAILABLE').length,
+    availableSeats: trip.seats.filter((seat) => effectiveSeatStatus(seat) === 'AVAILABLE').length,
   }
 }
 

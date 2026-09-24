@@ -10,6 +10,7 @@ export const logger = winston.createLogger({
 
 export function requestLogger(request: Request, response: Response, next: NextFunction) {
   const requestId = request.get('x-request-id') || randomUUID()
+  ;(request as Request & { requestId?: string }).requestId = requestId
   response.setHeader('x-request-id', requestId)
   const started = performance.now()
   response.on('finish', () =>

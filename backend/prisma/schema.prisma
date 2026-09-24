@@ -12,7 +12,19 @@ enum BusType {
 }
 enum SeatStatus {
   AVAILABLE
+  HELD
   BOOKED
+}
+enum HoldStatus {
+  ACTIVE
+  CONSUMED
+  RELEASED
+}
+enum PaymentAttemptStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  RECONCILIATION_REQUIRED
 }
 enum BookingStatus {
   ACTIVE
@@ -29,9 +41,13 @@ model User {
   name String
   email String @unique
   passwordHash String
+  isDemo Boolean @default(false)
+  demoExpiresAt DateTime?
   createdAt DateTime @default(now())
   bookingGroups BookingGroup[]
   bookings Booking[]
+  holds SeatHold[]
+  paymentAttempts PaymentAttempt[]
 }
 model City {
   id String @id @default(uuid())
@@ -72,6 +88,7 @@ model Trip {
   route Route @relation(fields: [routeId], references: [id])
   bus Bus @relation(fields: [busId], references: [id])
   seats Seat[]
+  holds SeatHold[]
   bookings Booking[]
   @@index([routeId, travelDate])
 }
@@ -83,17 +100,61 @@ model Seat {
   row Int
   column Int
   status SeatStatus @default(AVAILABLE)
+  holdId String?
+  holdExpiresAt DateTime?
   trip Trip @relation(fields: [tripId], references: [id])
+  hold SeatHold? @relation(fields: [holdId], references: [id])
   bookings Booking[]
   @@unique([tripId, seatNumber])
+  @@index([holdId])
+}
+model SeatHold {
+  id String @id @default(uuid())
+  userId String
+  tripId String
+  status HoldStatus @default(ACTIVE)
+  fareSnapshot Decimal @db.Decimal(10, 2)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id])
+  trip Trip @relation(fields: [tripId], references: [id])
+  seats Seat[]
+  paymentAttempts PaymentAttempt[]
+  bookingGroup BookingGroup?
+  @@index([userId, status])
+  @@index([status, expiresAt])
+}
+model PaymentAttempt {
+  id String @id @default(uuid())
+  userId String
+  holdId String
+  idempotencyKey String
+  amount Decimal @db.Decimal(10, 2)
+  status PaymentAttemptStatus @default(PENDING)
+  requestFingerprint String
+  requestPayload Json
+  provider String @default("mock")
+  providerScenario String?
+  providerRef String
+  resultCode String?
+  bookingGroupId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields: [userId], references: [id])
+  hold SeatHold @relation(fields: [holdId], references: [id])
+  @@unique([userId, idempotencyKey])
+  @@index([status, createdAt])
+  @@index([holdId])
 }
 model BookingGroup {
   id String @id @default(uuid())
   pnr String @unique
   userId String
+  holdId String? @unique
   status GroupStatus @default(ACTIVE)
   createdAt DateTime @default(now())
   user User @relation(fields: [userId], references: [id])
+  hold SeatHold? @relation(fields: [holdId], references: [id])
   bookings Booking[]
 }
 model Booking {

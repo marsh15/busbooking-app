@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { getTrip, getTripById } from '../services/buses.js'
 import { searchTrips } from '../services/search.js'
+import { optionalAuth, type AuthRequest } from '../middleware/auth.js'
 import { asyncRoute } from '../utils/http.js'
 import { tripSearchSchema } from '../validators.js'
 
@@ -8,8 +9,9 @@ export const busesRouter = Router()
 
 busesRouter.get(
   '/trip/:tripId',
-  asyncRoute(async (request, response) => {
-    response.json({ data: await getTripById(String(request.params.tripId)) })
+  optionalAuth,
+  asyncRoute(async (request: AuthRequest, response) => {
+    response.json({ data: await getTripById(String(request.params.tripId), request.userId) })
   }),
 )
 
@@ -42,7 +44,11 @@ busesRouter.get(
 
 busesRouter.get(
   '/:id',
-  asyncRoute(async (request, response) => {
-    response.json({ data: await getTrip(String(request.params.id), String(request.query.tripId)) })
+  optionalAuth,
+  asyncRoute(async (request: AuthRequest, response) => {
+    response.json({
+      data: await getTrip(String(request.params.id), String(request.query.tripId), request.userId),
+    })
   }),
 )
+

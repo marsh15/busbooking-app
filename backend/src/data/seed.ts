@@ -65,7 +65,9 @@ const stableId = (kind: string, key: string) => {
 }
 
 export async function seedDemoData(seedDate = process.env.SEED_DATE || istDate()) {
-  const currentDates = [seedDate, addDays(seedDate, 1)].map((date) => new Date(`${date}T00:00:00.000Z`))
+  // Seven rolling days keep the demo useful across the whole review window and
+  // make later cancellation-policy slabs reachable.
+  const currentDates = Array.from({ length: 7 }, (_, day) => new Date(`${addDays(seedDate, day)}T00:00:00.000Z`))
   const staleTrips = await prisma.trip.findMany({
     where: { isDemo: true, travelDate: { notIn: currentDates }, bookings: { none: {} } },
     select: { id: true },
@@ -105,7 +107,7 @@ export async function seedDemoData(seedDate = process.env.SEED_DATE || istDate()
   })
 
   for (const [routeIndex] of pairs.entries()) {
-    for (const day of [0, 1]) {
+    for (let day = 0; day < 7; day += 1) {
       for (const slot of [0, 1]) {
         const travelDate = addDays(seedDate, day)
         const bus = buses[(routeIndex + day * 2 + slot) % buses.length]!

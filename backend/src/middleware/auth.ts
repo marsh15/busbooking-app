@@ -9,15 +9,17 @@ const secret = () => {
 }
 export interface AuthRequest extends Request {
   userId?: string
+  requestId?: string
 }
 
-export function issueSession(response: Response, userId: string) {
-  const token = jwt.sign({ sub: userId }, secret(), { expiresIn: '7d' })
+export function issueSession(response: Response, userId: string, expiresAt?: Date) {
+  const maxAge = expiresAt ? Math.max(expiresAt.getTime() - Date.now(), 60_000) : 7 * 24 * 60 * 60 * 1000
+  const token = jwt.sign({ sub: userId }, secret(), { expiresIn: Math.floor(maxAge / 1000) })
   response.cookie('voyagebus_session', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000,
+    maxAge,
     path: '/',
   })
 }
@@ -31,6 +33,17 @@ export function requireAuth(request: AuthRequest, _response: Response, next: Nex
   } catch {
     next(new ApiError(401, 'UNAUTHENTICATED', 'Please sign in to continue.'))
   }
+}
+
+/** Attaches userId when a valid session exists; anonymous requests pass through. */
+export function optionalAuth(request: AuthRequest, _response: Response, next: NextFunction) {
+  try {
+    const token = request.cookies?.voyagebus_session
+    if (token) request.userId = String(jwt.verify(token, secret()).sub)
+  } catch {
+    request.userId = undefined
+  }
+  next()
 }
 
 export function requireCsrf(request: Request, _response: Response, next: NextFunction) {

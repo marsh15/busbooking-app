@@ -56,5 +56,5 @@ export async function searchTrips(filters: SearchFilters) {
     }),
     prisma.trip.count({ where }),
   ])
-  return { trips: records.map(tripDto), total, page, pageSize }
+  return { trips: records.map((trip) => tripDto(trip)), total, page, pageSize }
 }

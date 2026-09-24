@@ -11,6 +11,16 @@ export function addDays(date: string, days: number): string {
   return value.toISOString().slice(0, 10)
 }
 
+/** Absolute departure instant for a trip: UTC-midnight travelDate + IST departure time. */
+export function departureInstant(trip: { travelDate: Date | string; departureTime: string }): number {
+  const travelDate = typeof trip.travelDate === 'string' ? trip.travelDate : trip.travelDate.toISOString().slice(0, 10)
+  return new Date(`${travelDate}T${trip.departureTime}:00+05:30`).getTime()
+}
+
+export function hasDeparted(trip: { travelDate: Date | string; departureTime: string }, now = Date.now()): boolean {
+  return departureInstant(trip) <= now
+}
+
 export function isCancellationOpen(trip: {
   travelDate: string
   departureTime: string

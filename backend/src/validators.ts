@@ -23,6 +23,34 @@ export const bookingSchema = z.object({
     ),
 })
 export const aiSearchSchema = z.object({ query: z.string().trim().min(2).max(220) })
+export const holdSchema = z.object({
+  tripId: z.string().min(1),
+  seatNumbers: z
+    .array(z.string().regex(/^\d[A-D]$/))
+    .min(1)
+    .max(6)
+    .refine(
+      (seatNumbers) => new Set(seatNumbers).size === seatNumbers.length,
+      'Choose different seats for each passenger.',
+    ),
+})
+export const confirmSchema = z.object({
+  holdId: z.string().min(1),
+  passengers: z
+    .array(
+      z.object({
+        name: z.string().trim().min(2).max(60),
+        age: z.coerce.number().int().min(1).max(120),
+      }),
+    )
+    .min(1)
+    .max(6),
+})
+export const idempotencyKeySchema = z
+  .string()
+  .trim()
+  .min(8)
+  .max(80)
 const positiveInt = (maximum: number) => z.coerce.number().int().min(1).max(maximum)
 export const paginationSchema = z.object({
   page: positiveInt(100_000).default(1),

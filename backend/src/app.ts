@@ -4,12 +4,14 @@ import express from 'express'
 import helmet from 'helmet'
 import { prisma } from './data/prisma.js'
 import { requestLogger } from './config/logger.js'
-import { aiLimiter, apiLimiter, authLimiter } from './middleware/rate-limit.js'
+import { aiLimiter, apiLimiter, authLimiter, demoLimiter } from './middleware/rate-limit.js'
 import { requireCsrf } from './middleware/auth.js'
 import { aiRouter } from './routes/ai.js'
 import { authRouter } from './routes/auth.js'
 import { bookingsRouter } from './routes/bookings.js'
 import { busesRouter } from './routes/buses.js'
+import { checkoutRouter } from './routes/checkout.js'
+import { holdsRouter } from './routes/holds.js'
 import { routesRouter } from './routes/routes.js'
 import { errorHandler } from './utils/http.js'
 
@@ -53,8 +55,11 @@ app.get('/api/ready', async (_request, response) => {
 })
 
 app.use('/api/auth', authLimiter, authRouter)
+app.use('/api/auth/demo', demoLimiter)
 app.use('/api/routes', routesRouter)
 app.use('/api/buses', busesRouter)
+app.use('/api/holds', holdsRouter)
+app.use('/api/checkouts', checkoutRouter)
 app.use('/api/bookings', bookingsRouter)
 app.use('/api/ai', aiLimiter, aiRouter)
 

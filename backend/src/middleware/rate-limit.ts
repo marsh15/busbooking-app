@@ -27,3 +27,11 @@ export const aiLimiter = rateLimit({
   message: response,
   skip: skipInTests,
 })
+export const demoLimiter = rateLimit({
+  windowMs: 15 * 60_000,
+  limit: 8,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { error: { code: 'RATE_LIMITED', message: 'Too many demo sessions from this network. Please wait a few minutes.' } },
+  skip: skipInTests,
+})

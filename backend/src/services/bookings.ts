@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto'
 import { Prisma } from '@prisma/client'
 import { bookingGroupDto, tripInclude } from '../data/dto.js'
 import { prisma } from '../data/prisma.js'
@@ -13,84 +12,6 @@ async function hydrateGroup(groupId: string) {
     include: hydratedGroupInclude,
   })
   return bookingGroupDto(group)
-}
-
-export async function createBooking(
-  userId: string,
-  tripId: string,
-  passengers: Array<{ seatNumber: string; name: string; age: number }>,
-) {
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    try {
-      const groupId = await prisma.$transaction(
-        async (tx) => {
-          const trip = await tx.trip.findUnique({ where: { id: tripId } })
-          if (!trip) throw new ApiError(404, 'TRIP_NOT_FOUND', 'This trip is no longer available.')
-          const seats = await tx.seat.findMany({
-            where: { tripId, seatNumber: { in: passengers.map((item) => item.seatNumber) } },
-            orderBy: { id: 'asc' },
-          })
-          if (seats.length !== passengers.length)
-            throw new ApiError(
-              409,
-              'SEAT_UNAVAILABLE',
-              'One or more selected seats were just booked. Please choose again.',
-            )
-          for (const seat of seats) {
-            const claim = await tx.seat.updateMany({
-              where: { id: seat.id, status: 'AVAILABLE' },
-              data: { status: 'BOOKED' },
-            })
-            if (claim.count !== 1)
-              throw new ApiError(
-                409,
-                'SEAT_UNAVAILABLE',
-                'One or more selected seats were just booked. Please choose again.',
-              )
-          }
-          const group = await tx.bookingGroup.create({
-            data: {
-              pnr: `VB${randomUUID().replaceAll('-', '').slice(0, 12).toUpperCase()}`,
-              userId,
-              bookings: {
-                create: passengers.map((passenger) => {
-                  const seat = seats.find((candidate) => candidate.seatNumber === passenger.seatNumber)!
-                  return {
-                    userId,
-                    tripId,
-                    seatId: seat.id,
-                    seatNumber: seat.seatNumber,
-                    passengerName: passenger.name,
-                    passengerAge: passenger.age,
-                    totalFare: trip.fare,
-                  }
-                }),
-              },
-            },
-          })
-          return group.id
-        },
-        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-      )
-      return hydrateGroup(groupId)
-    } catch (error) {
-      if (error instanceof ApiError) throw error
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002' && attempt < 2)
-        continue
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034')
-        throw new ApiError(
-          409,
-          'SEAT_UNAVAILABLE',
-          'One or more selected seats were just booked. Please choose again.',
-        )
-      throw error
-    }
-  }
-  throw new ApiError(
-    500,
-    'PNR_GENERATION_FAILED',
-    'Could not generate a booking reference. Please try again.',
-  )
 }
 
 export async function getBookings(userId: string, page = 1, pageSize = 20) {
@@ -144,7 +65,10 @@ export async function cancelTicket(userId: string, ticketId: string) {
           })
           if (cancelled.count !== 1)
             throw new ApiError(409, 'TICKET_NOT_ACTIVE', 'This ticket has already been cancelled.')
-          await tx.seat.update({ where: { id: ticket.seatId }, data: { status: 'AVAILABLE' } })
+          await tx.seat.update({
+            where: { id: ticket.seatId },
+            data: { status: 'AVAILABLE', holdId: null, holdExpiresAt: null },
+          })
           const activeCount = await tx.booking.count({ where: { groupId: ticket.groupId, status: 'ACTIVE' } })
           const totalCount = await tx.booking.count({ where: { groupId: ticket.groupId } })
           await tx.bookingGroup.update({
@@ -156,7 +80,8 @@ export async function cancelTicket(userId: string, ticketId: string) {
           })
           return ticket.groupId
         },
-        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+        // Group-status recompute and the guarded ticket update are safe under
+        // default isolation; P2034 conflicts retry below.
       )
       return hydrateGroup(groupId)
     } catch (error) {

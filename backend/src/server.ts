@@ -2,6 +2,7 @@ import { app } from './app.js'
 import { connectDatabase, disconnectDatabase } from './data/prisma.js'
 import { seedDemoData } from './data/seed.js'
 import { applyMigrations } from './data/migrate.js'
+import { cleanupExpiredDemoData } from './data/demo-cleanup.js'
 import { validateEnvironment } from './config/env.js'
 import { logger } from './config/logger.js'
 
@@ -16,6 +17,7 @@ async function start() {
   }
   await seedDemoData()
   logger.info('demo_data_ready')
+  await cleanupExpiredDemoData()
   const server = app.listen(environment.PORT, '0.0.0.0', () =>
     logger.info('server_started', { port: environment.PORT }),
   )
