@@ -32,6 +32,11 @@ export const demoLimiter = rateLimit({
   limit: 8,
   standardHeaders: 'draft-8',
   legacyHeaders: false,
-  message: { error: { code: 'RATE_LIMITED', message: 'Too many demo sessions from this network. Please wait a few minutes.' } },
+  message: {
+    error: {
+      code: 'RATE_LIMITED',
+      message: 'Too many demo sessions from this network. Please wait a few minutes.',
+    },
+  },
   skip: skipInTests,
 })

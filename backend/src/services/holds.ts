@@ -12,15 +12,19 @@ const seatUnavailable = () =>
 
 const holdInclude = {
   seats: { orderBy: { id: 'asc' as const } },
-  trip: { include: { route: { include: { source: true, destination: true } }, bus: { include: { operator: true } } } },
+  trip: {
+    include: {
+      route: { include: { source: true, destination: true } },
+      bus: { include: { operator: true } },
+    },
+  },
 } satisfies Prisma.SeatHoldInclude
 
 type HoldRecord = Prisma.SeatHoldGetPayload<{ include: typeof holdInclude }>
 
 export function holdDto(hold: HoldRecord, now = new Date()) {
   const expired = hold.status === 'ACTIVE' && hold.expiresAt.getTime() <= now.getTime()
-  const state =
-    hold.status === 'ACTIVE' ? (expired ? 'EXPIRED' : 'ACTIVE') : hold.status
+  const state = hold.status === 'ACTIVE' ? (expired ? 'EXPIRED' : 'ACTIVE') : hold.status
   return {
     id: hold.id,
     tripId: hold.tripId,
@@ -54,19 +58,18 @@ async function releaseSeats(tx: Prisma.TransactionClient, holdId: string) {
   await tx.seatHold.updateMany({ where: { id: holdId, status: 'ACTIVE' }, data: { status: 'RELEASED' } })
 }
 
-export async function createHold(
-  userId: string,
-  tripId: string,
-  seatNumbers: string[],
-  requestId?: string,
-) {
+export async function createHold(userId: string, tripId: string, seatNumbers: string[], requestId?: string) {
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
       const hold = await prisma.$transaction(async (tx) => {
         const trip = await tx.trip.findUnique({ where: { id: tripId } })
         if (!trip) throw new ApiError(404, 'TRIP_NOT_FOUND', 'This trip is no longer available.')
         if (hasDeparted(trip))
-          throw new ApiError(409, 'TRIP_DEPARTED', 'This trip has already departed. Please pick a later date.')
+          throw new ApiError(
+            409,
+            'TRIP_DEPARTED',
+            'This trip has already departed. Please pick a later date.',
+          )
 
         // A fresh hold on the same trip replaces the traveller's previous one.
         const previousHolds = await tx.seatHold.findMany({
@@ -123,7 +126,11 @@ export async function createHold(
     } catch (error) {
       if (error instanceof ApiError) throw error
       // Deadlock / write conflict retry (MySQL ER_LOCK_WAIT_TIMEOUT / TiDB pessimistic conflicts).
-      if (error instanceof Prisma.PrismaClientKnownRequestError && ['P2034', 'P2024'].includes(error.code) && attempt < 2)
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        ['P2034', 'P2024'].includes(error.code) &&
+        attempt < 2
+      )
         continue
       throw error
     }
@@ -136,8 +143,7 @@ export async function getHold(userId: string, holdId: string, requestId?: string
   if (!hold || hold.userId !== userId)
     throw new ApiError(404, 'HOLD_NOT_FOUND', 'This seat hold no longer exists.')
   const dto = holdDto(hold)
-  if (dto.state === 'EXPIRED')
-    logger.info('hold_expired_seen', { requestId, holdId, tripId: hold.tripId })
+  if (dto.state === 'EXPIRED') logger.info('hold_expired_seen', { requestId, holdId, tripId: hold.tripId })
   return dto
 }
 

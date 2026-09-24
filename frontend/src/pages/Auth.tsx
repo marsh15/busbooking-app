@@ -74,12 +74,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
           </p>
         </div>
 
-        <button
-          className="demo-login"
-          type="button"
-          onClick={finishDemo}
-          disabled={demoMutation.isPending}
-        >
+        <button className="demo-login" type="button" onClick={finishDemo} disabled={demoMutation.isPending}>
           <span>
             <strong>Start a private demo session</strong>
             <small>Isolated account, lasts 24 hours — no signup</small>

@@ -83,7 +83,9 @@ describe('CheckoutPage', () => {
         </MemoryRouter>
       </QueryClientProvider>,
     )
-    expect(await screen.findByRole('heading', { name: 'Your hold on these seats has ended' })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { name: 'Your hold on these seats has ended' }),
+    ).toBeInTheDocument()
   })
 
   it('does not carry seats into checkout for another trip', () => {

@@ -48,8 +48,8 @@ export function ReadyGate({ children }: { children: React.ReactNode }) {
         <div className="ready-gate-spinner" aria-hidden="true" />
         <h1>VoyageBus is starting the demo</h1>
         <p>
-          The demo server sleeps when idle and is waking up now. This usually takes
-          under a minute{attempt > 1 ? ` — still trying (attempt ${attempt})` : ''}.
+          The demo server sleeps when idle and is waking up now. This usually takes under a minute
+          {attempt > 1 ? ` — still trying (attempt ${attempt})` : ''}.
         </p>
         {slow && (
           <>

@@ -1,5 +1,6 @@
 import { addDays, istDate } from '../utils/ist.js'
 import { z } from 'zod'
+import { logger } from '../config/logger.js'
 
 export interface ParsedSearch {
   source: string | null
@@ -132,7 +133,12 @@ export async function parseSearch(query: string): Promise<ParsedSearch> {
           ? []
           : ['Add both a source and destination to see matching buses.'],
     }
-  } catch {
+  } catch (error) {
+    // Structured fallback event; the raw search text never enters telemetry.
+    logger.info('parser_fallback', {
+      reason: error instanceof Error ? error.name : 'unknown',
+      queryLength: query.length,
+    })
     return {
       ...parseSearchFallback(query),
       warnings: ['AI parsing was unavailable, so we used the offline trip parser.'],

@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "description": "Local evaluation corpus for search parsing: route/date/filter extraction against the offline fallback parser. When the corpus changes in a way that alters expectations, bump version.",
+  "cases": [
+    {
+      "input": "AC sleeper from Hyd to Bangalore tomorrow night under ₹1200",
+      "expect": {
+        "source": "Hyderabad",
+        "destination": "Bengaluru",
+        "date": "tomorrow",
+        "timePreference": "night",
+        "busType": "SLEEPER",
+        "isAc": true,
+        "maxPrice": 1200
+      }
+    },
+    {
+      "input": "vizag to hyd today morning",
+      "expect": {
+        "source": "Visakhapatnam",
+        "destination": "Hyderabad",
+        "date": "today",
+        "timePreference": "morning"
+      }
+    },
+    {
+      "input": "Chennai to Coimbatore tomorrow afternoon seater",
+      "expect": {
+        "source": "Chennai",
+        "destination": "Coimbatore",
+        "date": "tomorrow",
+        "timePreference": "afternoon",
+        "busType": "SEATER"
+      }
+    },
+    {
+      "input": "cochin to trivandrum evening below rs 800",
+      "expect": {
+        "source": "Kochi",
+        "destination": "Thiruvananthapuram",
+        "timePreference": "evening",
+        "maxPrice": 800
+      }
+    },
+    {
+      "input": "non-ac bus from Hyderabad to Vijayawada",
+      "expect": {
+        "source": "Hyderabad",
+        "destination": "Vijayawada",
+        "isAc": false
+      }
+    },
+    {
+      "input": "bangalore to chennai tomorrow night less than 1500",
+      "expect": {
+        "source": "Bengaluru",
+        "destination": "Chennai",
+        "date": "tomorrow",
+        "timePreference": "night",
+        "maxPrice": 1500
+      }
+    },
+    {
+      "input": "somewhere nice to relax",
+      "expect": {
+        "source": null,
+        "destination": null,
+        "warningCount": 1
+      }
+    },
+    {
+      "input": "Kochi to Chennai",
+      "expect": {
+        "source": "Kochi",
+        "destination": "Chennai",
+        "date": null,
+        "maxPrice": null
+      }
+    }
+  ]
+}

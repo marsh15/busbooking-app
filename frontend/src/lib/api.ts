@@ -72,7 +72,11 @@ export const client = {
   ) => {
     await csrf()
     return data<CheckoutResult>(
-      api.post('/checkouts/confirm', { holdId, passengers }, { headers: { 'idempotency-key': idempotencyKey } }),
+      api.post(
+        '/checkouts/confirm',
+        { holdId, passengers },
+        { headers: { 'idempotency-key': idempotencyKey } },
+      ),
     )
   },
   getAttempt: (attemptId: string) => data<CheckoutResult>(api.get(`/checkouts/attempts/${attemptId}`)),

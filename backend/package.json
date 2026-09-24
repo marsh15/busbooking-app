@@ -15,7 +15,8 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
-    "verify:openai": "tsx src/scripts/verify-openai.ts"
+    "verify:openai": "tsx src/scripts/verify-openai.ts",
+    "test:tidb": "tsx src/scripts/verify-tidb.ts && prisma migrate deploy && prisma db seed && vitest run"
   },
   "keywords": [],
   "author": "",

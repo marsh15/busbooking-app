@@ -18,13 +18,7 @@ checkoutRouter.post(
     // Test-only provider scenario injection; production always uses 'success'.
     const scenario =
       process.env.NODE_ENV === 'production' ? null : (request.get('x-payment-scenario') ?? null)
-    const result = await confirmCheckout(
-      request.userId!,
-      input,
-      idempotencyKey,
-      scenario,
-      request.requestId,
-    )
+    const result = await confirmCheckout(request.userId!, input, idempotencyKey, scenario, request.requestId)
     response.status(result.attempt.status === 'SUCCEEDED' && result.booking ? 200 : 202).json({
       data: result,
     })

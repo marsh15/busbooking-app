@@ -20,7 +20,9 @@ const seedDates = Array.from(
 beforeEach(async () => {
   await prisma.paymentAttempt.deleteMany({ where: { hold: { trip: { travelDate: { in: seedDates } } } } })
   await prisma.booking.deleteMany({ where: { trip: { travelDate: { in: seedDates } } } })
-  await prisma.bookingGroup.deleteMany({ where: { bookings: { every: { trip: { travelDate: { in: seedDates } } } } } })
+  await prisma.bookingGroup.deleteMany({
+    where: { bookings: { every: { trip: { travelDate: { in: seedDates } } } } },
+  })
   await prisma.seatHold.deleteMany({ where: { trip: { travelDate: { in: seedDates } } } })
   await prisma.user.deleteMany({
     where: { email: { not: 'demo@voyagebus.in' }, isDemo: false },
@@ -51,10 +53,7 @@ describe.sequential('VoyageBus API with MySQL persistence', () => {
   }
 
   async function createHold(agent: Agent, csrf: string, tripId: string, seatNumbers: string[]) {
-    const response = await agent
-      .post('/api/holds')
-      .set('x-csrf-token', csrf)
-      .send({ tripId, seatNumbers })
+    const response = await agent.post('/api/holds').set('x-csrf-token', csrf).send({ tripId, seatNumbers })
     expect(response.status).toBe(201)
     return response.body.data as { id: string; expiresAt: string; farePerSeat: number }
   }
@@ -145,7 +144,9 @@ describe.sequential('VoyageBus API with MySQL persistence', () => {
     const owner = await signedInAgent('seed-preserve@example.com')
     const trip = await firstTrip()
     const hold = await createHold(owner.agent, owner.csrf, trip.id, ['1A'])
-    await confirm(owner.agent, owner.csrf, hold.id, [{ name: 'Seed Rider', age: 29 }], idKey('seed')).expect(200)
+    await confirm(owner.agent, owner.csrf, hold.id, [{ name: 'Seed Rider', age: 29 }], idKey('seed')).expect(
+      200,
+    )
     await seedDemoData(seedDate)
     const dates = [new Date(`${seedDate}T00:00:00.000Z`), new Date('2030-01-11T00:00:00.000Z')]
     expect(await prisma.trip.count({ where: { travelDate: { in: dates } } })).toBe(24)
@@ -200,6 +201,10 @@ describe.sequential('VoyageBus API with MySQL persistence', () => {
   it('resolves a hold race with exactly one winner and no partial ownership', async () => {
     const first = await signedInAgent('hold-race-a@example.com')
     const second = await signedInAgent('hold-race-b@example.com')
+    // A third traveller probes the partial rollback: unlike the race losers,
+    // they hold nothing on this trip, so their multi-seat request must fail
+    // against the winner's seat and claim nothing.
+    const outsider = await signedInAgent('hold-race-c@example.com')
     const trip = await firstTrip()
     const payload = { tripId: trip.id, seatNumbers: ['1C', '1D'] }
     const [one, two] = await Promise.all([
@@ -214,9 +219,9 @@ describe.sequential('VoyageBus API with MySQL persistence', () => {
     expect(held.every((seat) => seat.status === 'HELD')).toBe(true)
     expect(new Set(held.map((seat) => seat.holdId)).size).toBe(1)
 
-    const partial = await second.agent
+    const partial = await outsider.agent
       .post('/api/holds')
-      .set('x-csrf-token', second.csrf)
+      .set('x-csrf-token', outsider.csrf)
       .send({ tripId: trip.id, seatNumbers: ['2C', '1C'] })
       .expect(409)
     expect(partial.body.error.code).toBe('SEAT_UNAVAILABLE')
@@ -240,9 +245,10 @@ describe.sequential('VoyageBus API with MySQL persistence', () => {
       .expect(201)
     expect(hold.body.data.seatNumbers).toEqual(['5A', '5B'])
     const ownView = await owner.agent.get(`/api/buses/trip/${trip.id}`).expect(200)
-    expect(
-      ownView.body.data.seats.find((seat: { number: string }) => seat.number === '5A'),
-    ).toMatchObject({ status: 'HELD', heldByYou: true })
+    expect(ownView.body.data.seats.find((seat: { number: string }) => seat.number === '5A')).toMatchObject({
+      status: 'HELD',
+      heldByYou: true,
+    })
     const strangerView = await stranger.agent.get(`/api/buses/trip/${trip.id}`).expect(200)
     expect(
       strangerView.body.data.seats.find((seat: { number: string }) => seat.number === '5A'),
@@ -265,7 +271,11 @@ describe.sequential('VoyageBus API with MySQL persistence', () => {
       .set('x-csrf-token', stranger.csrf)
       .send({ tripId: trip.id, seatNumbers: ['6A'] })
       .expect(409)
-    await owner.agent.delete(`/api/holds/${replaced.body.data.id}`).set('x-csrf-token', owner.csrf).send().expect(204)
+    await owner.agent
+      .delete(`/api/holds/${replaced.body.data.id}`)
+      .set('x-csrf-token', owner.csrf)
+      .send()
+      .expect(204)
     expect(
       (
         await prisma.seat.findUniqueOrThrow({
@@ -350,7 +360,13 @@ describe.sequential('VoyageBus API with MySQL persistence', () => {
     expect(await prisma.bookingGroup.count({ where: { holdId: hold.id } })).toBe(1)
     expect(await prisma.booking.count({ where: { groupId: created.body.data.booking.id } })).toBe(2)
 
-    const reused = await confirm(owner.agent, owner.csrf, hold.id, [{ name: 'Someone Else', age: 20 }], key).expect(409)
+    const reused = await confirm(
+      owner.agent,
+      owner.csrf,
+      hold.id,
+      [{ name: 'Someone Else', age: 20 }],
+      key,
+    ).expect(409)
     expect(reused.body.error.code).toBe('IDEMPOTENCY_KEY_REUSED')
   })
 
@@ -369,8 +385,11 @@ describe.sequential('VoyageBus API with MySQL persistence', () => {
     expect(new Set(ids).size).toBe(1)
     expect(await prisma.bookingGroup.count({ where: { holdId: hold.id } })).toBe(1)
     expect(
-      (await prisma.seat.findUniqueOrThrow({ where: { tripId_seatNumber: { tripId: trip.id, seatNumber: '3A' } } }))
-        .status,
+      (
+        await prisma.seat.findUniqueOrThrow({
+          where: { tripId_seatNumber: { tripId: trip.id, seatNumber: '3A' } },
+        })
+      ).status,
     ).toBe('BOOKED')
   })
 
@@ -433,15 +452,24 @@ describe.sequential('VoyageBus API with MySQL persistence', () => {
     await prisma.seatHold.update({ where: { id: hold.id }, data: { expiresAt: past } })
     await prisma.seat.updateMany({ where: { holdId: hold.id }, data: { holdExpiresAt: past } })
 
-    const late = await confirm(owner.agent, owner.csrf, hold.id, [{ name: 'Late Rider', age: 50 }], idKey('late'))
+    const late = await confirm(
+      owner.agent,
+      owner.csrf,
+      hold.id,
+      [{ name: 'Late Rider', age: 50 }],
+      idKey('late'),
+    )
     expect(late.status).toBe(409)
     expect(late.body.error.code).toBe('HOLD_EXPIRED')
     const attempt = await prisma.paymentAttempt.findFirstOrThrow({ where: { holdId: hold.id } })
     expect(attempt.status).toBe('RECONCILIATION_REQUIRED')
     expect(await prisma.bookingGroup.count({ where: { holdId: hold.id } })).toBe(0)
     expect(
-      (await prisma.seat.findUniqueOrThrow({ where: { tripId_seatNumber: { tripId: trip.id, seatNumber: '6B' } } }))
-        .status,
+      (
+        await prisma.seat.findUniqueOrThrow({
+          where: { tripId_seatNumber: { tripId: trip.id, seatNumber: '6B' } },
+        })
+      ).status,
     ).toBe('HELD')
   })
 
@@ -467,9 +495,7 @@ describe.sequential('VoyageBus API with MySQL persistence', () => {
       .send()
       .expect(403)
     // The server quote drives the UI and the commit recalculates the same.
-    const quote = await owner.agent
-      .get(`/api/bookings/${firstTicket.id}/cancellation-quote`)
-      .expect(200)
+    const quote = await owner.agent.get(`/api/bookings/${firstTicket.id}/cancellation-quote`).expect(200)
     expect(quote.body.data.eligible).toBe(true)
     expect(quote.body.data.refundPercent).toBeGreaterThanOrEqual(25)
     expect(quote.body.data.policy.rules.length).toBeGreaterThan(1)
@@ -519,7 +545,6 @@ describe.sequential('VoyageBus API with MySQL persistence', () => {
     ).toBe('AVAILABLE')
   })
 
-
   it('keeps a booking on its checkout-time policy even after the operator re-versions', async () => {
     const owner = await signedInAgent('snapshot@example.com')
     const trip = await firstTrip()
@@ -538,7 +563,9 @@ describe.sequential('VoyageBus API with MySQL persistence', () => {
     // The operator ships a harsher version after the sale.
     await prisma.cancellationPolicy.create({
       data: {
-        operatorId: (await prisma.cancellationPolicy.findFirstOrThrow({ where: { version: snapshot.version } })).operatorId,
+        operatorId: (
+          await prisma.cancellationPolicy.findFirstOrThrow({ where: { version: snapshot.version } })
+        ).operatorId,
         version: 99,
         isActive: true,
         rules: [{ beforeDepartureHours: 999, refundPercent: 5 }],

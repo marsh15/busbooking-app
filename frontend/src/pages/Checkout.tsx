@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { client } from '../lib/api'
 import { getApiCode, getApiMessage } from '../lib/errors'
+import { closingWindow, policyWindows } from '../lib/policy'
 import { useAppStore } from '../store'
 import type { CheckoutResult } from '../types'
 
@@ -196,8 +197,7 @@ export function CheckoutPage() {
         <div className="empty-state">
           <h1>Those seats just went</h1>
           <p>
-            {getApiMessage(createHold.error) ||
-              'Another traveller is holding them. Please choose again.'}
+            {getApiMessage(createHold.error) || 'Another traveller is holding them. Please choose again.'}
           </p>
           {trip && (
             <Link className="primary" to={`/bus/${trip.busId}?tripId=${trip.id}`}>
@@ -318,7 +318,8 @@ export function CheckoutPage() {
               <p>{getApiMessage(confirmPayment.error) || 'Please try again in a moment.'}</p>
               {getApiCode(confirmPayment.error) === 'HOLD_EXPIRED' && trip && (
                 <p>
-                  Your hold expired. <Link to={`/bus/${trip.busId}?tripId=${trip.id}`}>Choose seats again</Link>
+                  Your hold expired.{' '}
+                  <Link to={`/bus/${trip.busId}?tripId=${trip.id}`}>Choose seats again</Link>
                 </p>
               )}
             </div>
@@ -373,11 +374,19 @@ export function CheckoutPage() {
             </div>
           </dl>
           {trip?.policy && (
-            <p className="muted micro">
-              Cancellation policy: this operator closes cancellation {trip.policy.cutoffMinutes / 60}h before
-              departure with a {trip.policy.feePercent}% fee. Refunds are quoted per ticket before you
-              cancel.
-            </p>
+            <div className="policy-summary">
+              <h3>Cancellation policy · {trip.policy.operatorName}</h3>
+              <ul>
+                {policyWindows(trip.policy).map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+                <li className="muted">{closingWindow(trip.policy)}</li>
+              </ul>
+              <p className="muted micro">
+                These are the terms this booking is sold under; refunds are quoted per ticket before you
+                cancel.
+              </p>
+            </div>
           )}
         </aside>
       </div>

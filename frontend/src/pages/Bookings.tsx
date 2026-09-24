@@ -160,10 +160,15 @@ function BookingGroupCard({ group, showCancel }: { group: BookingGroup; showCanc
       close()
     },
   })
-  const refundAmount = pending
-    ? Math.round(pending.totalFare * (1 - pending.trip.cancellationFeePercent / 100))
-    : 0
-  const cutoffHours = pending ? pending.trip.cancellationCutoffMinutes / 60 : 0
+  // The quote comes from the server — the same calculation the cancellation
+  // commit re-runs, so the numbers cannot drift from the operator policy.
+  const quoteQuery = useQuery({
+    queryKey: ['cancellation-quote', pending?.id],
+    queryFn: () => client.cancellationQuote(pending!.id),
+    enabled: !!pending,
+    staleTime: 0,
+  })
+  const quote = quoteQuery.data
   return (
     <article className="booking-group">
       <header>
@@ -238,14 +243,31 @@ function BookingGroupCard({ group, showCancel }: { group: BookingGroup; showCanc
           >
             <p className="eyebrow">Cancel ticket</p>
             <h2 id="cancel-title">Cancel seat {pending.seatNumber}?</h2>
-            <p id="cancel-description">
-              You'll see a simulated refund of <strong>₹{refundAmount.toLocaleString('en-IN')}</strong>. The
-              seat will become available again.
-            </p>
-            <p className="muted">
-              The {pending.trip.cancellationFeePercent}% mock cancellation fee applies until {cutoffHours}{' '}
-              {cutoffHours === 1 ? 'hour' : 'hours'} before departure.
-            </p>
+            <div id="cancel-description">
+              {quoteQuery.isFetching && <p>Checking this operator's cancellation policy…</p>}
+              {quote && quote.eligible && (
+                <>
+                  <p>
+                    Simulated refund of <strong>₹{quote.refundAmount.toLocaleString('en-IN')}</strong> (
+                    {100 - quote.refundPercent}% fee) under the {quote.windowLabel} window.
+                  </p>
+                  <p className="muted">
+                    {quote.policy.operatorName} policy v{quote.policy.version}: the refund is recalculated
+                    when you confirm, in case the departure window changes while you decide.
+                  </p>
+                </>
+              )}
+              {quote && !quote.eligible && (
+                <p className="form-error" role="alert">
+                  {quote.reason ?? 'This ticket can no longer be cancelled.'}
+                </p>
+              )}
+              {quoteQuery.isError && (
+                <p className="form-error" role="alert">
+                  Could not load the cancellation quote. Close and try again.
+                </p>
+              )}
+            </div>
             {cancellation.isError && (
               <p className="form-error" role="alert">
                 {getApiMessage(cancellation.error) ?? 'This ticket can no longer be cancelled.'}
@@ -257,7 +279,7 @@ function BookingGroupCard({ group, showCancel }: { group: BookingGroup; showCanc
               </button>
               <button
                 className="danger-button"
-                disabled={cancellation.isPending}
+                disabled={cancellation.isPending || !quote?.eligible}
                 onClick={() => cancellation.mutate(pending.id)}
               >
                 {cancellation.isPending ? 'Cancelling…' : 'Confirm cancellation'}

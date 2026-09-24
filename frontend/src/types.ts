@@ -29,9 +29,18 @@ export interface Seat {
   status: 'AVAILABLE' | 'HELD' | 'BOOKED'
   heldByYou?: boolean
 }
+export interface PolicyRule {
+  beforeDepartureHours: number
+  refundPercent: number
+}
+export interface PolicyInfo {
+  operatorName: string
+  version: number
+  rules: PolicyRule[]
+}
 export interface TripDetail extends TripCard {
   seats: Seat[]
-  policy: { cutoffMinutes: number; feePercent: number }
+  policy: PolicyInfo
 }
 export interface User {
   id: string
@@ -55,8 +64,6 @@ export interface Ticket {
     arrivalTime: string
     durationMinutes: number
     fare: number
-    cancellationCutoffMinutes: number
-    cancellationFeePercent: number
   }
 }
 export interface BookingGroup {
@@ -64,6 +71,7 @@ export interface BookingGroup {
   pnr: string
   status: 'ACTIVE' | 'PARTIALLY_CANCELLED' | 'CANCELLED'
   createdAt: string
+  policySnapshot?: PolicyInfo
   tickets: Ticket[]
 }
 export interface ParsedSearch {
@@ -121,5 +129,6 @@ export interface CancellationQuote {
   refundAmount: number
   refundPercent: number
   windowLabel: string
+  policy: PolicyInfo
   quotedAt: string
 }

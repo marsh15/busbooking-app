@@ -1,11 +1,91 @@
 {
   "info": { "name": "VoyageBus API", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json" },
-  "variable": [{ "key": "baseUrl", "value": "http://localhost:4000/api" }],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000/api" },
+    { "key": "csrfToken", "value": "" },
+    { "key": "holdId", "value": "" },
+    { "key": "ticketId", "value": "" }
+  ],
   "item": [
     { "name": "Health", "request": { "method": "GET", "url": "{{baseUrl}}/health" } },
+    { "name": "Readiness", "request": { "method": "GET", "url": "{{baseUrl}}/ready" } },
     { "name": "CSRF token", "request": { "method": "GET", "url": "{{baseUrl}}/auth/csrf" } },
-    { "name": "Register", "request": { "method": "POST", "header": [{ "key": "x-csrf-token", "value": "{{csrfToken}}" }], "body": { "mode": "raw", "raw": "{\n  \"name\": \"Asha Rao\",\n  \"email\": \"asha@example.com\",\n  \"password\": \"VoyageBus123!\"\n}" }, "url": "{{baseUrl}}/auth/register" } },
+    {
+      "name": "Start demo session",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "x-csrf-token", "value": "{{csrfToken}}" }],
+        "url": "{{baseUrl}}/auth/demo"
+      }
+    },
+    {
+      "name": "Register (local only)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "x-csrf-token", "value": "{{csrfToken}}" }],
+        "body": { "mode": "raw", "raw": "{\n  \"name\": \"Asha Rao\",\n  \"email\": \"asha@example.com\",\n  \"password\": \"VoyageBus123!\"\n}" },
+        "url": "{{baseUrl}}/auth/register"
+      }
+    },
     { "name": "Search route", "request": { "method": "GET", "url": "{{baseUrl}}/routes/search?source=Hyderabad&destination=Vijayawada" } },
-    { "name": "Parse natural search", "request": { "method": "POST", "header": [{ "key": "x-csrf-token", "value": "{{csrfToken}}" }], "body": { "mode": "raw", "raw": "{\"query\":\"AC sleeper Hyderabad to Bengaluru tomorrow night under ₹1200\"}" }, "url": "{{baseUrl}}/ai/parse-search" } }
+    { "name": "List trips", "request": { "method": "GET", "url": "{{baseUrl}}/buses?source=Hyderabad&destination=Vijayawada" } },
+    {
+      "name": "Parse natural search",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "x-csrf-token", "value": "{{csrfToken}}" }],
+        "body": { "mode": "raw", "raw": "{\"query\":\"AC sleeper Hyderabad to Bengaluru tomorrow night under ₹1200\"}" },
+        "url": "{{baseUrl}}/ai/parse-search"
+      }
+    },
+    {
+      "name": "Create seat hold",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "x-csrf-token", "value": "{{csrfToken}}" },
+          { "key": "content-type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"tripId\": \"<tripId>\",\n  \"seatNumbers\": [\"1A\", \"1B\"]\n}" },
+        "url": "{{baseUrl}}/holds"
+      }
+    },
+    { "name": "Get hold", "request": { "method": "GET", "url": "{{baseUrl}}/holds/{{holdId}}" } },
+    { "name": "Release hold", "request": { "method": "DELETE", "header": [{ "key": "x-csrf-token", "value": "{{csrfToken}}" }], "url": "{{baseUrl}}/holds/{{holdId}}" } },
+    {
+      "name": "Confirm checkout (idempotent)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "x-csrf-token", "value": "{{csrfToken}}" },
+          { "key": "Idempotency-Key", "value": "postman-demo-key-1" },
+          { "key": "content-type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"holdId\": \"{{holdId}}\",\n  \"passengers\": [\n    { \"name\": \"Asha Rao\", \"age\": 29 },\n    { \"name\": \"Vikram Rao\", \"age\": 31 }\n  ]\n}" },
+        "url": "{{baseUrl}}/checkouts/confirm",
+        "description": "Retry with the same key and payload returns the same booking. Add x-payment-scenario: failure|delay|lost in non-production to exercise recovery paths."
+      }
+    },
+    { "name": "Get payment attempt", "request": { "method": "GET", "url": "{{baseUrl}}/checkouts/attempts/<attemptId>" } },
+    { "name": "My bookings", "request": { "method": "GET", "url": "{{baseUrl}}/bookings/me" } },
+    { "name": "Cancellation quote", "request": { "method": "GET", "url": "{{baseUrl}}/bookings/{{ticketId}}/cancellation-quote" } },
+    {
+      "name": "Cancel ticket",
+      "request": {
+        "method": "PATCH",
+        "header": [{ "key": "x-csrf-token", "value": "{{csrfToken}}" }],
+        "url": "{{baseUrl}}/bookings/{{ticketId}}/cancel"
+      }
+    },
+    {
+      "name": "Direct booking (removed)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "x-csrf-token", "value": "{{csrfToken}}" }],
+        "body": { "mode": "raw", "raw": "{\n  \"tripId\": \"<tripId>\",\n  \"passengers\": [{ \"seatNumber\": \"1A\", \"name\": \"Asha Rao\", \"age\": 29 }]\n}" },
+        "url": "{{baseUrl}}/bookings",
+        "description": "Returns 410 BOOKINGS_VIA_CHECKOUT. Kept to document the removed path."
+      }
+    }
   ]
 }

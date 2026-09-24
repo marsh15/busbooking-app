@@ -836,7 +836,9 @@ button.ghost {
   padding: 10px 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
 }
 
 button.ghost:hover:not(:disabled) {
@@ -863,4 +865,43 @@ button.ghost:hover:not(:disabled) {
   .hold-countdown {
     align-items: flex-start;
   }
+}
+
+/* --- Policy summaries --- */
+
+.policy-windows,
+.policy-summary ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 8px;
+  display: grid;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: var(--ink);
+}
+
+.policy-windows li,
+.policy-summary ul li {
+  padding-left: 16px;
+  position: relative;
+}
+
+.policy-windows li::before,
+.policy-summary ul li::before {
+  content: '·';
+  position: absolute;
+  left: 4px;
+  color: var(--voyage-teal);
+  font-weight: 700;
+}
+
+.policy-summary {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+  margin-top: 4px;
+}
+
+.policy-summary h3 {
+  font-size: 0.9rem;
+  margin: 0 0 8px;
 }

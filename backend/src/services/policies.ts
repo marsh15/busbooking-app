@@ -19,7 +19,8 @@ export interface RefundQuote {
   windowLabel: string
 }
 
-const sortedRules = (rules: PolicyRule[]) => [...rules].sort((a, b) => b.beforeDepartureHours - a.beforeDepartureHours)
+const sortedRules = (rules: PolicyRule[]) =>
+  [...rules].sort((a, b) => b.beforeDepartureHours - a.beforeDepartureHours)
 
 /**
  * Threshold refund rules: the first window whose `beforeDepartureHours` the
@@ -41,10 +42,7 @@ export function quoteRefund(
       refundAmount: new Prisma.Decimal(0),
       windowLabel: `Cancellation is closed within ${ordered[ordered.length - 1]?.beforeDepartureHours ?? 0}h of departure`,
     }
-  const refundAmount = totalFare
-    .mul(applicable.refundPercent)
-    .div(100)
-    .toDecimalPlaces(0)
+  const refundAmount = totalFare.mul(applicable.refundPercent).div(100).toDecimalPlaces(0)
   return {
     eligible: true,
     refundPercent: applicable.refundPercent,

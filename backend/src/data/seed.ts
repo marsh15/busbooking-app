@@ -89,7 +89,10 @@ const stableId = (kind: string, key: string) => {
 export async function seedDemoData(seedDate = process.env.SEED_DATE || istDate()) {
   // Seven rolling days keep the demo useful across the whole review window and
   // make later cancellation-policy slabs reachable.
-  const currentDates = Array.from({ length: 7 }, (_, day) => new Date(`${addDays(seedDate, day)}T00:00:00.000Z`))
+  const currentDates = Array.from(
+    { length: 7 },
+    (_, day) => new Date(`${addDays(seedDate, day)}T00:00:00.000Z`),
+  )
   const staleTrips = await prisma.trip.findMany({
     where: { isDemo: true, travelDate: { notIn: currentDates }, bookings: { none: {} } },
     select: { id: true },
@@ -115,7 +118,11 @@ export async function seedDemoData(seedDate = process.env.SEED_DATE || istDate()
   }
   for (const operator of operators) {
     const operatorId = stableId('operator', operator.name)
-    await prisma.operator.upsert({ where: { id: operatorId }, update: {}, create: { id: operatorId, name: operator.name } })
+    await prisma.operator.upsert({
+      where: { id: operatorId },
+      update: {},
+      create: { id: operatorId, name: operator.name },
+    })
     await prisma.cancellationPolicy.upsert({
       where: { operatorId_version: { operatorId, version: 1 } },
       update: {},
@@ -164,7 +171,10 @@ export async function seedDemoData(seedDate = process.env.SEED_DATE || istDate()
         const data = {
           routeId: stableId('route', `${pairs[routeIndex]![0]}:${pairs[routeIndex]![1]}`),
           busId: stableId('bus', bus.id),
-          policyId: stableId('policy', operators.find((operator) => operator.name === bus.operatorName)!.policyKey),
+          policyId: stableId(
+            'policy',
+            operators.find((operator) => operator.name === bus.operatorName)!.policyKey,
+          ),
           travelDate: new Date(`${travelDate}T00:00:00.000Z`),
           departureTime: slot === 0 ? '07:30' : '21:15',
           arrivalTime:

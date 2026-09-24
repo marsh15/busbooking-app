@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { client } from '../lib/api'
+import { closingWindow, policyWindows } from '../lib/policy'
 import { SeatMap } from '../components/SeatMap'
 import { useAppStore } from '../store'
 
@@ -90,10 +91,12 @@ export function BusDetailsPage() {
             ))}
           </ul>
           <h3>Cancellation policy</h3>
-          <p className="muted">
-            Cancel up to {item.policy.cutoffMinutes / 60} hours before departure. A {item.policy.feePercent}%
-            mock cancellation fee applies.
-          </p>
+          <ul className="policy-windows">
+            {policyWindows(item.policy).map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+            <li className="muted">{closingWindow(item.policy)}</li>
+          </ul>
         </aside>
       </div>
     </main>

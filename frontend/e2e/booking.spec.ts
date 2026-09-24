@@ -43,6 +43,9 @@ test('browse publicly, start a demo, hold seats, pay, and partially cancel', asy
   await page.getByRole('link', { name: 'Manage my booking' }).click()
   await page.getByRole('button', { name: 'Cancel ticket' }).first().click()
   await expect(page.getByRole('dialog')).toBeVisible()
+  // The quote is server-calculated from the operator's policy windows.
+  await expect(page.getByText(/Simulated refund of ₹[\d,]+/)).toBeVisible()
+  await expect(page.getByText(/before departure window/, { exact: false })).toBeVisible()
   await page.getByRole('button', { name: 'Confirm cancellation' }).click()
   await expect(page.getByText('PARTIALLY CANCELLED')).toBeVisible()
   await page.getByRole('button', { name: 'Cancel ticket' }).click()

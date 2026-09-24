@@ -13,11 +13,15 @@ export function addDays(date: string, days: number): string {
 
 /** Absolute departure instant for a trip: UTC-midnight travelDate + IST departure time. */
 export function departureInstant(trip: { travelDate: Date | string; departureTime: string }): number {
-  const travelDate = typeof trip.travelDate === 'string' ? trip.travelDate : trip.travelDate.toISOString().slice(0, 10)
+  const travelDate =
+    typeof trip.travelDate === 'string' ? trip.travelDate : trip.travelDate.toISOString().slice(0, 10)
   return new Date(`${travelDate}T${trip.departureTime}:00+05:30`).getTime()
 }
 
-export function hasDeparted(trip: { travelDate: Date | string; departureTime: string }, now = Date.now()): boolean {
+export function hasDeparted(
+  trip: { travelDate: Date | string; departureTime: string },
+  now = Date.now(),
+): boolean {
   return departureInstant(trip) <= now
 }
 

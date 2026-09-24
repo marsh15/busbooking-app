@@ -46,11 +46,7 @@ export const confirmSchema = z.object({
     .min(1)
     .max(6),
 })
-export const idempotencyKeySchema = z
-  .string()
-  .trim()
-  .min(8)
-  .max(80)
+export const idempotencyKeySchema = z.string().trim().min(8).max(80)
 const positiveInt = (maximum: number) => z.coerce.number().int().min(1).max(maximum)
 export const paginationSchema = z.object({
   page: positiveInt(100_000).default(1),

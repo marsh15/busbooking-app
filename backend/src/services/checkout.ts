@@ -61,15 +61,9 @@ function attemptResult(
 }
 
 const fingerprintOf = (holdId: string, passengers: PassengerInput[]) =>
-  createHash('sha256')
-    .update(JSON.stringify({ holdId, passengers }))
-    .digest('hex')
+  createHash('sha256').update(JSON.stringify({ holdId, passengers })).digest('hex')
 
-async function markReconciled(
-  attemptId: string,
-  requestId: string | undefined,
-  reason: string,
-) {
+async function markReconciled(attemptId: string, requestId: string | undefined, reason: string) {
   await prisma.paymentAttempt.updateMany({
     where: { id: attemptId, status: 'PENDING' },
     data: { status: 'RECONCILIATION_REQUIRED', resultCode: reason },
@@ -203,10 +197,7 @@ async function finalizeSuccess(
         await hydrateGroup(groupId),
       )
     } catch (error) {
-      if (
-        error instanceof ApiError &&
-        (error.code === 'HOLD_EXPIRED' || error.code === 'SEAT_UNAVAILABLE')
-      ) {
+      if (error instanceof ApiError && (error.code === 'HOLD_EXPIRED' || error.code === 'SEAT_UNAVAILABLE')) {
         // The transaction rolled back with the throw; record the durable
         // reconciliation state separately so the attempt is not silently PENDING.
         await markReconciled(
@@ -329,9 +320,7 @@ export async function confirmCheckout(
       data: { status: 'FAILED', resultCode: outcome.resultCode },
     })
     logger.info('payment_failed', { requestId, attemptId: attempt.id, resultCode: outcome.resultCode })
-    return attemptResult(
-      await prisma.paymentAttempt.findUniqueOrThrow({ where: { id: attempt.id } }),
-    )
+    return attemptResult(await prisma.paymentAttempt.findUniqueOrThrow({ where: { id: attempt.id } }))
   }
 
   return finalizeSuccess(attempt, input.passengers, requestId)
