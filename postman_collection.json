@@ -2,6 +2,7 @@
   "info": { "name": "VoyageBus API", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json" },
   "variable": [
     { "key": "baseUrl", "value": "http://localhost:4000/api" },
+    { "key": "testPassword", "value": "" },
     { "key": "csrfToken", "value": "" },
     { "key": "holdId", "value": "" },
     { "key": "ticketId", "value": "" }
@@ -23,7 +24,7 @@
       "request": {
         "method": "POST",
         "header": [{ "key": "x-csrf-token", "value": "{{csrfToken}}" }],
-        "body": { "mode": "raw", "raw": "{\n  \"name\": \"Asha Rao\",\n  \"email\": \"asha@example.com\",\n  \"password\": \"VoyageBus123!\"\n}" },
+        "body": { "mode": "raw", "raw": "{\n  \"name\": \"Asha Rao\",\n  \"email\": \"asha@example.com\",\n  \"password\": \"{{testPassword}}\"\n}" },
         "url": "{{baseUrl}}/auth/register"
       }
     },

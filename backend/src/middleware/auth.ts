@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from 'express'
 import jwt from 'jsonwebtoken'
 import { ApiError } from '../utils/http.js'
+import { isRetiredDemoUser } from '../config/retired-demo.js'
 
 const secret = () => {
   const value = process.env.JWT_SECRET
@@ -28,7 +29,9 @@ export function requireAuth(request: AuthRequest, _response: Response, next: Nex
   try {
     const token = request.cookies?.voyagebus_session
     if (!token) throw new Error('missing')
-    request.userId = String(jwt.verify(token, secret()).sub)
+    const userId = String(jwt.verify(token, secret()).sub)
+    if (isRetiredDemoUser(userId)) throw new Error('retired demo account')
+    request.userId = userId
     next()
   } catch {
     next(new ApiError(401, 'UNAUTHENTICATED', 'Please sign in to continue.'))
@@ -39,7 +42,11 @@ export function requireAuth(request: AuthRequest, _response: Response, next: Nex
 export function optionalAuth(request: AuthRequest, _response: Response, next: NextFunction) {
   try {
     const token = request.cookies?.voyagebus_session
-    if (token) request.userId = String(jwt.verify(token, secret()).sub)
+    if (token) {
+      const userId = String(jwt.verify(token, secret()).sub)
+      if (isRetiredDemoUser(userId)) throw new Error('retired demo account')
+      request.userId = userId
+    }
   } catch {
     request.userId = undefined
   }

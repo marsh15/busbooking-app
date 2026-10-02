@@ -8,3 +8,9 @@ coverage/
 .DS_Store
 .vite/
 .playwright-cli/
+*.pem
+*.key
+*.p12
+*.pfx
+*.sql
+*.sql.gz

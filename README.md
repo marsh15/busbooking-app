@@ -58,6 +58,11 @@ Open http://localhost:5173. The API listens on port 4000 and MySQL on 3307. A fa
 
 ## Verification
 
+Install Gitleaks and enable the secret-blocking hook with `git config core.hooksPath .githooks`.
+Run `gitleaks git --pre-commit --staged --redact` before committing. CI scans tracked files
+and new commit ranges. See [credential incident response](docs/08-SECURITY.md) for the
+retired shared demo account, deployment steps, and history cleanup.
+
 ```bash
 npm run typecheck --prefix backend
 npm run test:integration --prefix backend   # real MySQL: races, replay, restart, expiry, cancellation

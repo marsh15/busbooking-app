@@ -1,4 +1,5 @@
 import request from 'supertest'
+import argon2 from 'argon2'
 
 // supertest v7 no longer exports TestAgent; derive it from the factory.
 type Agent = ReturnType<typeof request.agent>
@@ -7,6 +8,7 @@ import { app } from './app.js'
 import { prisma } from './data/prisma.js'
 import { seedDemoData } from './data/seed.js'
 import { parseSearchFallback } from './services/ai-parser.js'
+import { retiredDemoAccounts } from './config/retired-demo.js'
 
 const seedDate = '2030-01-10'
 const idKey = (name: string) => `test-key-${name}-${Math.random().toString(36).slice(2, 8)}`
@@ -34,13 +36,39 @@ beforeEach(async () => {
 })
 
 describe.sequential('VoyageBus API with MySQL persistence', () => {
+  it.each(retiredDemoAccounts)(
+    'retires shared demo $id without deleting its account',
+    async ({ id, email }) => {
+      await prisma.user.upsert({
+        where: { id },
+        create: {
+          id,
+          name: 'Retired Demo',
+          email,
+          passwordHash: await argon2.hash('test-only-password'),
+        },
+        update: { passwordHash: await argon2.hash('test-only-password') },
+      })
+      const agent = request.agent(app)
+      const csrf = (await agent.get('/api/auth/csrf')).body.data.token
+      await agent
+        .post('/api/auth/login')
+        .set('x-csrf-token', csrf)
+        .send({ email, password: 'test-only-password' })
+        .expect(401)
+      await seedDemoData(seedDate)
+      const retired = await prisma.user.findUniqueOrThrow({ where: { id } })
+      expect(await argon2.verify(retired.passwordHash, 'test-only-password')).toBe(false)
+    },
+  )
+
   async function signedInAgent(email: string) {
     const agent = request.agent(app)
     const csrf = (await agent.get('/api/auth/csrf')).body.data.token
     await agent
       .post('/api/auth/register')
       .set('x-csrf-token', csrf)
-      .send({ name: email.split('@')[0], email, password: 'VoyageBus123!' })
+      .send({ name: email.split('@')[0], email, password: 'test-only-password' })
       .expect(201)
     return { agent, csrf }
   }
@@ -101,7 +129,7 @@ describe.sequential('VoyageBus API with MySQL persistence', () => {
     const duplicate = await another
       .post('/api/auth/register')
       .set('x-csrf-token', csrf)
-      .send({ name: 'Duplicate', email: 'persistent@example.com', password: 'VoyageBus123!' })
+      .send({ name: 'Duplicate', email: 'persistent@example.com', password: 'test-only-password' })
     expect(duplicate.status).toBe(409)
     expect(duplicate.body.error.code).toBe('EMAIL_IN_USE')
     const loginAgent = request.agent(app)
@@ -109,7 +137,7 @@ describe.sequential('VoyageBus API with MySQL persistence', () => {
     await loginAgent
       .post('/api/auth/login')
       .set('x-csrf-token', loginCsrf)
-      .send({ email: 'persistent@example.com', password: 'VoyageBus123!' })
+      .send({ email: 'persistent@example.com', password: 'test-only-password' })
       .expect(200)
     await loginAgent.get('/api/auth/me').expect(200)
   })
@@ -675,7 +703,7 @@ describe.sequential('VoyageBus API with MySQL persistence', () => {
     await freshAgent
       .post('/api/auth/login')
       .set('x-csrf-token', csrf)
-      .send({ email: 'restart@example.com', password: 'VoyageBus123!' })
+      .send({ email: 'restart@example.com', password: 'test-only-password' })
       .expect(200)
     const bookings = await freshAgent.get('/api/bookings/me').expect(200)
     expect(bookings.body.data[0].pnr).toBe(created.body.data.booking.pnr)

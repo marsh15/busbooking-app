@@ -1,0 +1,34 @@
+title = "VoyageBus secret detection"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "hardcoded-account-password"
+description = "Literal account password in source or documentation"
+regex = '''(?im)(?:(?:^|[\s{,])["']?password(?:Hash)?["']?\s*[:=]\s*|argon2\.hash\(\s*)["'\x60]([^"'\x60\r\n]{8,})["'\x60]'''
+secretGroup = 1
+keywords = ["password", "argon2.hash"]
+
+[[rules.allowlists]]
+description = "Exact non-secret test placeholders only"
+regexTarget = "secret"
+regexes = ['''^test-only-password$''', '''^\{\{testPassword\}\}$''']
+
+[[rules]]
+id = "documented-account-password"
+description = "Password published as a documentation field"
+regex = '''(?i)password\s*:\s*\x60([^\s\x60]{8,})\x60'''
+secretGroup = 1
+keywords = ["password"]
+
+[[rules.allowlists]]
+description = "Exact local database fixture only"
+regexTarget = "secret"
+regexes = ['''^smartbus_dev_password$''']
+
+[[rules]]
+id = "legacy-shared-demo-password"
+description = "Retired branded shared demo passwords, including escaped JSON examples"
+regex = '''(?i)(?:voyage|smart)bus[0-9]{3,}[!@#$%^&*]?'''
+keywords = ["voyagebus", "smartbus"]

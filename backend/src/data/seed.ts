@@ -1,8 +1,9 @@
 import argon2 from 'argon2'
 import { Prisma } from '@prisma/client'
-import { createHash } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import { prisma } from './prisma.js'
 import { addDays, istDate } from '../utils/ist.js'
+import { retiredDemoAccounts } from '../config/retired-demo.js'
 
 const cities = [
   'Hyderabad',
@@ -88,6 +89,12 @@ const stableId = (kind: string, key: string) => {
 }
 
 export async function seedDemoData(seedDate = process.env.SEED_DATE || istDate()) {
+  // Revoke the published password on existing databases without deleting any
+  // bookings. Middleware also rejects these accounts' previously issued JWTs.
+  await prisma.user.updateMany({
+    where: { OR: retiredDemoAccounts },
+    data: { passwordHash: await argon2.hash(randomBytes(32).toString('hex'), { type: argon2.argon2id }) },
+  })
   // Seven rolling days keep the demo useful across the whole review window and
   // make later cancellation-policy slabs reachable.
   const currentDates = Array.from(
@@ -150,18 +157,6 @@ export async function seedDemoData(seedDate = process.env.SEED_DATE || istDate()
     })),
     skipDuplicates: true,
   })
-  await prisma.user.createMany({
-    data: [
-      {
-        id: stableId('user', 'demo@voyagebus.in'),
-        name: 'Demo Traveller',
-        email: 'demo@voyagebus.in',
-        passwordHash: await argon2.hash('VoyageBus123!', { type: argon2.argon2id }),
-      },
-    ],
-    skipDuplicates: true,
-  })
-
   const trips: Array<Prisma.TripCreateManyInput & { id: string }> = []
   const tripKeys: string[] = []
   for (const [routeIndex] of pairs.entries()) {

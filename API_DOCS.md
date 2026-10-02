@@ -54,7 +54,7 @@ Confirm with a stable idempotency key. Retrying with the same key and payload re
 
 ```http
 POST /api/checkouts/confirm
-Idempotency-Key: ui-3f1c9a2e-7b44
+Idempotency-Key: <unique-request-id>
 x-csrf-token: <issued token>
 
 {"holdId":"hold-1","passengers":[{"name":"Asha Rao","age":29},{"name":"Vikram Rao","age":31}]}

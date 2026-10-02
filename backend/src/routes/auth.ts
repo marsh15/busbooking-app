@@ -8,6 +8,7 @@ import { authSchema } from '../validators.js'
 import { ApiError, asyncRoute } from '../utils/http.js'
 import { scheduleDemoCleanup } from '../data/demo-cleanup.js'
 import { logger } from '../config/logger.js'
+import { isRetiredDemoUser } from '../config/retired-demo.js'
 
 export const authRouter = Router()
 const publicUser = (user: { id: string; name: string; email: string }) => ({
@@ -62,7 +63,7 @@ authRouter.post(
   asyncRoute(async (request, response) => {
     const input = authSchema.pick({ email: true, password: true }).parse(request.body)
     const user = await prisma.user.findUnique({ where: { email: input.email.toLowerCase() } })
-    if (!user || !(await argon2.verify(user.passwordHash, input.password)))
+    if (!user || isRetiredDemoUser(user.id) || !(await argon2.verify(user.passwordHash, input.password)))
       throw new ApiError(401, 'INVALID_CREDENTIALS', 'Email or password is incorrect.')
     issueSession(response, user.id)
     response.json({ data: { user: publicUser(user) } })
